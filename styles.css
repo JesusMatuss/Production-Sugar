@@ -1,0 +1,868 @@
+/* ============================================================== */
+/* SUGAR PEDIDOS WEB - ESTILOS GLOBALES Y SELECTOR DE TEMA       */
+/* (Modo Claro Cálido de Panadería vs. Modo Oscuro TV)           */
+/* ============================================================== */
+
+:root {
+  /* --- PALETA MODO CLARO CÁLIDO (POR DEFECTO) --- */
+  --bg-app: #FAF7F2;                /* Blanco Harina / Crema Suave */
+  --bg-surface: #FFFFFF;            /* Blanco Puro Cálido */
+  --bg-surface-subtle: #F2ECE1;     /* Arena / Masa Cruda */
+  --bg-surface-card: #FFFFFF;
+  --border-color: #E3D8C6;          /* Trigo Claro */
+  --border-subtle: #EFE7DA;
+  --text-main: #2B1E16;             /* Espresso / Tostado Oscuro */
+  --text-secondary: #6E5849;        /* Cacao / Marrón Medio */
+  --text-muted: #8C7565;
+  --accent-primary: #B46528;        /* Caramelo Tostado */
+  --accent-primary-hover: #96501B;
+  --accent-secondary: #D99B52;      /* Canela / Miel Suave */
+  
+  /* Estados Operativos */
+  --status-ready-bg: #E8F5EC;       /* Verde Suave */
+  --status-ready-text: #2E6F40;     /* Verde Bosque */
+  --status-ready-border: #B7E4C7;
+  
+  --status-pending-bg: #FDF3E7;     /* Ámbar Pastel */
+  --status-pending-text: #9A5B13;   /* Caramelo Profundo */
+  --status-pending-border: #F7D8B5;
+  
+  --badge-delivery-bg: #EAF2F7;     /* Azul Pizarra Suave */
+  --badge-delivery-text: #2C5E7A;
+  --badge-delivery-border: #B8D6E8;
+
+  --badge-pickup-bg: #F5EFEB;       /* Tostado Claro */
+  --badge-pickup-text: #6E4928;
+  --badge-pickup-border: #DECBC0;
+
+  --card-shadow: 0 4px 20px -2px rgba(43, 30, 22, 0.06), 0 2px 6px -1px rgba(43, 30, 22, 0.04);
+}
+
+html.dark {
+  /* --- PALETA MODO OSCURO (TV & PLANTA) --- */
+  --bg-app: #0b0f19;
+  --bg-surface: #0f172a;
+  --bg-surface-subtle: #020617;
+  --bg-surface-card: #0f172a;
+  --border-color: #1e293b;
+  --border-subtle: #334155;
+  --text-main: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-primary: #f59e0b;
+  --accent-primary-hover: #d97706;
+  --accent-secondary: #fbbf24;
+
+  --status-ready-bg: rgba(16, 185, 129, 0.2);
+  --status-ready-text: #6ee7b7;
+  --status-ready-border: rgba(16, 185, 129, 0.4);
+
+  --status-pending-bg: rgba(245, 158, 11, 0.2);
+  --status-pending-text: #fcd34d;
+  --status-pending-border: rgba(245, 158, 11, 0.4);
+
+  --badge-delivery-bg: rgba(168, 85, 247, 0.2);
+  --badge-delivery-text: #d8b4fe;
+  --badge-delivery-border: rgba(168, 85, 247, 0.4);
+
+  --badge-pickup-bg: #1e293b;
+  --badge-pickup-text: #cbd5e1;
+  --badge-pickup-border: #334155;
+
+  --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================================== */
+/* ESTILOS DE SCROLLBAR                                           */
+/* ============================================================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+html.dark ::-webkit-scrollbar-track,
+html.dark *::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+html.dark ::-webkit-scrollbar-thumb,
+html.dark *::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+html.dark ::-webkit-scrollbar-thumb:hover,
+html.dark *::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+html:not(.dark) ::-webkit-scrollbar-track,
+html:not(.dark) *::-webkit-scrollbar-track {
+  background: #FAF7F2;
+}
+html:not(.dark) ::-webkit-scrollbar-thumb,
+html:not(.dark) *::-webkit-scrollbar-thumb {
+  background: #D9CBB7;
+  border-radius: 4px;
+}
+html:not(.dark) ::-webkit-scrollbar-thumb:hover,
+html:not(.dark) *::-webkit-scrollbar-thumb:hover {
+  background: #C4B29A;
+}
+
+/* ============================================================== */
+/* TIPOGRAFÍA Y UTILIDADES DE IMPACTO OPERATIVO                   */
+/* ============================================================== */
+.tv-display-num {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.05em;
+}
+
+.live-pulse {
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+}
+
+.badge-negative {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.badge-positive {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+html:not(.dark) .badge-negative {
+  background: #FEE2E2 !important;
+  color: #DC2626 !important;
+  border: 1px solid #FCA5A5 !important;
+}
+
+html:not(.dark) .badge-positive {
+  background: #E8F5EC !important;
+  color: #2E6F40 !important;
+  border: 1px solid #B7E4C7 !important;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================== */
+/* OVERRIDES PARA MODO CLARO CÁLIDO (PANADERÍA)                   */
+/* ============================================================== */
+
+html:not(.dark) body {
+  background-color: var(--bg-app) !important;
+  color: var(--text-main) !important;
+}
+
+/* Header principal */
+html:not(.dark) header {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-bottom-color: var(--border-color) !important;
+  box-shadow: 0 4px 20px -2px rgba(43, 30, 22, 0.05) !important;
+}
+html:not(.dark) header h1 {
+  color: var(--text-main) !important;
+}
+html:not(.dark) header p {
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) header span.bg-amber-500\/15 {
+  background-color: #FDF3E7 !important;
+  color: #B46528 !important;
+  border-color: #F7D8B5 !important;
+}
+
+/* Navegación por Pestañas */
+html:not(.dark) header nav {
+  background-color: var(--bg-surface-subtle) !important;
+  border-color: var(--border-color) !important;
+}
+html:not(.dark) header nav button:not(.bg-amber-500):not(.bg-purple-600) {
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) header nav button:not(.bg-amber-500):not(.bg-purple-600):hover {
+  background-color: #E6DDD0 !important;
+  color: var(--text-main) !important;
+}
+html:not(.dark) header nav button.bg-amber-500 {
+  background-color: var(--accent-primary) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(180, 101, 40, 0.3) !important;
+}
+html:not(.dark) header nav button.bg-purple-600 {
+  background-color: #7E3A94 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(126, 58, 148, 0.3) !important;
+}
+html:not(.dark) #badge-nav-deliverys {
+  background-color: #EAF2F7 !important;
+  color: #2C5E7A !important;
+  border-color: #B8D6E8 !important;
+}
+
+/* Reloj y Controles del Header */
+html:not(.dark) #clock-container,
+html:not(.dark) header .bg-slate-900 {
+  background-color: var(--bg-surface-subtle) !important;
+  border-color: var(--border-color) !important;
+}
+html:not(.dark) #tv-clock {
+  color: var(--accent-primary) !important;
+}
+html:not(.dark) #btn-config-api {
+  background-color: var(--bg-surface-subtle) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) #btn-config-api:hover {
+  background-color: #E6DDD0 !important;
+  color: var(--text-main) !important;
+}
+
+/* Barras de Filtros y Herramientas (Contenedores Secundarios) */
+html:not(.dark) #view-pedidos > div:first-child,
+html:not(.dark) #view-produccion > div:first-child,
+html:not(.dark) #view-entregas > div:first-child,
+html:not(.dark) #view-deliverys > div:nth-child(2) {
+  background-color: var(--bg-surface-subtle) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: 0 4px 16px -2px rgba(43, 30, 22, 0.05) !important;
+}
+
+/* Inputs, Selects y Buscadores */
+html:not(.dark) input[type="text"],
+html:not(.dark) input[type="number"],
+html:not(.dark) select {
+  background-color: #FFFFFF !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main) !important;
+}
+html:not(.dark) input[type="text"]::placeholder,
+html:not(.dark) input[type="number"]::placeholder {
+  color: var(--text-muted) !important;
+}
+html:not(.dark) input[type="text"]:focus,
+html:not(.dark) input[type="number"]:focus,
+html:not(.dark) select:focus {
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 2px rgba(180, 101, 40, 0.15) !important;
+}
+html:not(.dark) .pointer-events-none {
+  color: var(--text-secondary) !important;
+}
+
+/* Botones de Barra de Herramientas */
+html:not(.dark) #btn-select-all {
+  background-color: #FFFFFF !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) #btn-select-all:hover {
+  background-color: var(--bg-surface-subtle) !important;
+  color: var(--text-main) !important;
+}
+html:not(.dark) #btn-send-production:disabled {
+  background-color: #EFE7DA !important;
+  color: #A08C7D !important;
+  border-color: #DECBC0 !important;
+}
+html:not(.dark) #btn-send-production:not(:disabled) {
+  background: linear-gradient(to right, #B46528, #D99B52) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 15px rgba(180, 101, 40, 0.35) !important;
+}
+
+/* Badges de Conteo en Barras de Herramientas */
+html:not(.dark) #stat-entregas-count {
+  background-color: #FFFFFF !important;
+  color: var(--accent-primary) !important;
+  border-color: var(--border-color) !important;
+}
+html:not(.dark) #stat-deliverys-badge-count {
+  background-color: #FFFFFF !important;
+  color: var(--badge-delivery-text) !important;
+  border-color: var(--badge-delivery-border) !important;
+}
+
+/* Tarjetas Principales de Pedidos, Entregas y Deliverys */
+html:not(.dark) #orders-grid > div,
+html:not(.dark) #entregas-grid > div,
+html:not(.dark) #deliverys-grid > div,
+html:not(.dark) #tv-toppings-container > div {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+/* Cabeceras de Tarjetas */
+html:not(.dark) #orders-grid > div > div:first-child,
+html:not(.dark) #entregas-grid > div > div:first-child > div:first-child,
+html:not(.dark) #deliverys-grid > div > div:first-child > div:first-child {
+  background: linear-gradient(to right, #FFFFFF, #FAF7F2) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+/* Pies de Tarjetas */
+html:not(.dark) #orders-grid > div > div:last-child {
+  background-color: var(--bg-surface-subtle) !important;
+  border-top-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) #entregas-grid > div > div:last-child {
+  border-top-color: var(--border-color) !important;
+}
+
+/* ============================================================== */
+/* VISTA DELIVERYS Y ENTREGAS: TARJETAS EN MODO CLARO CÁLIDO      */
+/* ============================================================== */
+
+/* 1. Bloque de Cálculo: Productos + Envío = Total a Cobrar */
+html:not(.dark) #deliverys-grid .bg-slate-950\/60 {
+  background-color: #F2ECE1 !important;
+  border-color: #E3D8C6 !important;
+  color: #6E5849 !important;
+}
+html:not(.dark) #deliverys-grid .bg-slate-950\/60 span {
+  color: #6E5849 !important;
+}
+html:not(.dark) #deliverys-grid .bg-slate-950\/60 strong.text-white {
+  color: #2B1E16 !important;
+}
+html:not(.dark) #deliverys-grid .card-envio-cost {
+  color: #B46528 !important;
+}
+html:not(.dark) #deliverys-grid .card-total-formula {
+  color: #2E6F40 !important;
+}
+
+/* 2. Bloque interno de "Productos (N)" y filas de ítems */
+html:not(.dark) #deliverys-grid .bg-slate-950\/40,
+html:not(.dark) #entregas-grid .bg-slate-950\/60 {
+  background-color: #FAF7F2 !important;
+  border-color: #E3D8C6 !important;
+}
+html:not(.dark) #deliverys-grid .bg-slate-950\/40 > div:first-child,
+html:not(.dark) #entregas-grid .bg-slate-950\/60 > div:first-child {
+  border-bottom-color: #E3D8C6 !important;
+}
+html:not(.dark) #deliverys-grid .bg-slate-950\/40 > div:first-child span:first-child,
+html:not(.dark) #entregas-grid .bg-slate-950\/60 > div:first-child span:first-child {
+  color: #6E5849 !important;
+}
+html:not(.dark) #deliverys-grid .bg-slate-950\/40 > div:first-child span:last-child,
+html:not(.dark) #entregas-grid .bg-slate-950\/60 > div:first-child span:last-child {
+  color: #2B1E16 !important;
+}
+html:not(.dark) #deliverys-grid .divide-y > div,
+html:not(.dark) #entregas-grid .divide-y > div {
+  border-bottom-color: #EFE7DA !important;
+}
+html:not(.dark) #deliverys-grid .divide-y span.text-slate-200,
+html:not(.dark) #entregas-grid .divide-y span.text-slate-200 {
+  color: #2B1E16 !important;
+}
+html:not(.dark) #deliverys-grid .divide-y span.text-white,
+html:not(.dark) #entregas-grid .divide-y span.text-white {
+  color: #2B1E16 !important;
+}
+html:not(.dark) #deliverys-grid .divide-y span.text-slate-400,
+html:not(.dark) #entregas-grid .divide-y span.text-slate-400 {
+  color: #6E5849 !important;
+}
+html:not(.dark) #deliverys-grid .divide-y span.text-emerald-400,
+html:not(.dark) #entregas-grid .divide-y span.text-emerald-400 {
+  color: #2E6F40 !important;
+}
+html:not(.dark) #deliverys-grid .divide-y span.bg-slate-800,
+html:not(.dark) #entregas-grid .divide-y span.bg-slate-800 {
+  background-color: #F2ECE1 !important;
+  color: #B46528 !important;
+  border: 1px solid #E3D8C6 !important;
+}
+
+/* Dirección y Asignación de Repartidor */
+html:not(.dark) #deliverys-grid .bg-slate-950\/70 {
+  background-color: #F2ECE1 !important;
+  border-color: #E3D8C6 !important;
+  color: #2B1E16 !important;
+}
+html:not(.dark) #deliverys-grid .bg-purple-950\/20 {
+  background-color: #F2ECE1 !important;
+  border-color: #E3D8C6 !important;
+}
+html:not(.dark) #deliverys-grid .text-purple-300 {
+  color: #6E5849 !important;
+}
+html:not(.dark) .input-deliv-cost {
+  background-color: #FFFFFF !important;
+  border-color: #DECBC0 !important;
+  color: #B46528 !important;
+}
+html:not(.dark) .select-deliv-driver {
+  background-color: #FFFFFF !important;
+  border-color: #DECBC0 !important;
+  color: #2B1E16 !important;
+}
+
+/* 3. Bloque de "Pago Repartidor" y Botones de Acción */
+html:not(.dark) #deliverys-grid .bg-slate-950\/80 {
+  background-color: #F2ECE1 !important;
+  border-color: #E3D8C6 !important;
+}
+html:not(.dark) #deliverys-grid .bg-slate-950\/80 span.text-slate-400 {
+  color: #6E5849 !important;
+}
+
+/* Botón Desmarcar Liquidación */
+html:not(.dark) #deliverys-grid .btn-toggle-paid-group.bg-slate-800 {
+  background-color: #FFFFFF !important;
+  color: #6E5849 !important;
+  border: 1px solid #E3D8C6 !important;
+}
+html:not(.dark) #deliverys-grid .btn-toggle-paid-group.bg-slate-800:hover {
+  background-color: #FAF7F2 !important;
+  color: #2B1E16 !important;
+  border-color: #B46528 !important;
+}
+
+/* Botón Liquidar Pago */
+html:not(.dark) #deliverys-grid .btn-toggle-paid-group.bg-emerald-600 {
+  background-color: #2E6F40 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(46, 111, 64, 0.25) !important;
+}
+html:not(.dark) #deliverys-grid .btn-toggle-paid-group.bg-emerald-600:hover {
+  background-color: #245833 !important;
+}
+
+/* Botones Inferiores de Estado en Deliverys */
+html:not(.dark) .btn-deliv-realizado {
+  background-color: #B46528 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 3px 10px rgba(180, 101, 40, 0.25) !important;
+}
+html:not(.dark) .btn-deliv-realizado:hover {
+  background-color: #96501B !important;
+}
+html:not(.dark) .btn-deliv-entregar {
+  background: #2E6F40 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 3px 10px rgba(46, 111, 64, 0.25) !important;
+}
+html:not(.dark) .btn-deliv-entregar:hover {
+  background: #245833 !important;
+}
+html:not(.dark) .btn-deliv-revert-entregar {
+  background-color: #F2ECE1 !important;
+  color: #6E5849 !important;
+  border: 1px solid #E3D8C6 !important;
+}
+html:not(.dark) .btn-deliv-revert-entregar:hover {
+  background-color: #EAE2D4 !important;
+  color: #2B1E16 !important;
+}
+
+/* Botón y Divisor Inferior de Tarjeta */
+html:not(.dark) #deliverys-grid > div > div:last-child {
+  border-top-color: #E3D8C6 !important;
+}
+html:not(.dark) .card-total-cobrar {
+  color: #2E6F40 !important;
+}
+
+/* Tablas dentro de Tarjetas de Pedidos */
+html:not(.dark) #orders-grid table thead tr {
+  border-bottom-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) #orders-grid table tbody tr {
+  border-bottom-color: var(--border-subtle) !important;
+  color: var(--text-main) !important;
+}
+
+/* Textos Generales en Modo Claro */
+html:not(.dark) h2,
+html:not(.dark) h3,
+html:not(.dark) h4 {
+  color: var(--text-main) !important;
+}
+html:not(.dark) .text-slate-100,
+html:not(.dark) .text-slate-200 {
+  color: var(--text-main) !important;
+}
+html:not(.dark) .text-slate-300,
+html:not(.dark) .text-slate-400,
+html:not(.dark) .text-slate-500 {
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) .text-white:not(button):not(button *):not(.badge-keep-white) {
+  color: var(--text-main) !important;
+}
+
+/* Mantener texto blanco de alto impacto en botones de acción */
+html:not(.dark) .btn-action-card-entregar,
+html:not(.dark) .btn-action-card-entregar *,
+html:not(.dark) #btn-save-driver-modal,
+html:not(.dark) #btn-confirm-clear,
+html:not(.dark) .btn-liquidar-repartidor,
+html:not(.dark) .bg-emerald-600,
+html:not(.dark) .bg-purple-600 {
+  color: #FFFFFF !important;
+}
+
+/* Badges de Estado: Listo / Despacho / Entregado */
+html:not(.dark) span.bg-emerald-500\/20,
+html:not(.dark) span.bg-cyan-500\/20 {
+  background-color: var(--status-ready-bg) !important;
+  color: var(--status-ready-text) !important;
+  border-color: var(--status-ready-border) !important;
+}
+
+/* Badges de Estado: Pendiente / Producción */
+html:not(.dark) span.bg-amber-500\/20,
+html:not(.dark) span.bg-blue-500\/20,
+html:not(.dark) span.bg-slate-800:not(.badge-date) {
+  background-color: var(--status-pending-bg) !important;
+  color: var(--status-pending-text) !important;
+  border-color: var(--status-pending-border) !important;
+}
+
+/* Badges de Modalidad: Delivery */
+html:not(.dark) span.bg-purple-500\/15,
+html:not(.dark) span.bg-purple-500\/20 {
+  background-color: var(--badge-delivery-bg) !important;
+  color: var(--badge-delivery-text) !important;
+  border-color: var(--badge-delivery-border) !important;
+}
+
+/* Badges de Modalidad: Retiro en Tienda */
+html:not(.dark) span.bg-amber-500\/15 {
+  background-color: var(--badge-pickup-bg) !important;
+  color: var(--badge-pickup-text) !important;
+  border-color: var(--badge-pickup-border) !important;
+}
+
+/* Badge de Monto Total ($) */
+html:not(.dark) span.bg-emerald-500\/15 {
+  background-color: var(--status-ready-bg) !important;
+  color: var(--status-ready-text) !important;
+  border-color: var(--status-ready-border) !important;
+}
+
+/* Montos y Valores Monetarios */
+html:not(.dark) .text-emerald-400,
+html:not(.dark) .text-emerald-300 {
+  color: var(--status-ready-text) !important;
+}
+html:not(.dark) .text-amber-400,
+html:not(.dark) .text-amber-300 {
+  color: var(--accent-primary) !important;
+}
+
+/* Enlaces WhatsApp */
+html:not(.dark) a[href*="wa.me"] {
+  background-color: var(--status-ready-bg) !important;
+  color: var(--status-ready-text) !important;
+  border-color: var(--status-ready-border) !important;
+}
+html:not(.dark) a[href*="wa.me"]:hover {
+  background-color: #D1E7DD !important;
+}
+
+/* Botones de Acción Secundaria en Tarjetas */
+html:not(.dark) .btn-action-card-realizado {
+  background-color: #FDF3E7 !important;
+  color: #9A5B13 !important;
+  border-color: #F7D8B5 !important;
+}
+html:not(.dark) .btn-retire-card {
+  background-color: #FEE2E2 !important;
+  color: #DC2626 !important;
+  border-color: #FCA5A5 !important;
+}
+html:not(.dark) .btn-action-card-delivery {
+  background-color: var(--badge-delivery-bg) !important;
+  color: var(--badge-delivery-text) !important;
+  border-color: var(--badge-delivery-border) !important;
+}
+html:not(.dark) .btn-action-card-pickup,
+html:not(.dark) .btn-deliv-to-pickup {
+  background-color: var(--bg-surface-subtle) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+html:not(.dark) .btn-select-client-items {
+  background-color: #FDF3E7 !important;
+  color: var(--accent-primary) !important;
+  border-color: #F7D8B5 !important;
+}
+
+/* Producción TV en Modo Claro */
+html:not(.dark) #view-produccion .grid-cols-1.sm\:grid-cols-3 > div {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+html:not(.dark) #view-produccion .btn-dough.bg-gradient-to-r {
+  background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary)) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(180, 101, 40, 0.35) !important;
+}
+html:not(.dark) #view-produccion .btn-dough:not(.bg-gradient-to-r) {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) #view-produccion .btn-dough:not(.bg-gradient-to-r):hover {
+  background-color: var(--bg-surface-subtle) !important;
+  color: var(--text-main) !important;
+}
+html:not(.dark) #tv-dough-badge {
+  background-color: #FDF3E7 !important;
+  color: #9A5B13 !important;
+  border-color: #F7D8B5 !important;
+}
+
+/* Controles de Descuento de Paquetes en Consolidado TV */
+.input-pq-discount::-webkit-inner-spin-button,
+.input-pq-discount::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.input-pq-discount {
+  -moz-appearance: textfield;
+}
+
+html:not(.dark) .input-pq-discount {
+  background-color: #FFFFFF !important;
+  border-color: #E3D8C6 !important;
+  color: #2B1E16 !important;
+}
+html:not(.dark) .input-pq-discount:focus {
+  border-color: #B46528 !important;
+}
+html:not(.dark) .btn-pq-minus {
+  background-color: #FFFFFF !important;
+  border-color: #E3D8C6 !important;
+  color: #DC2626 !important;
+}
+html:not(.dark) .btn-pq-minus:hover:not(:disabled) {
+  background-color: #FEE2E2 !important;
+  border-color: #FCA5A5 !important;
+}
+html:not(.dark) .btn-pq-plus {
+  background-color: #FFFFFF !important;
+  border-color: #E3D8C6 !important;
+  color: #2E6F40 !important;
+}
+html:not(.dark) .btn-pq-plus:hover:not(:disabled) {
+  background-color: #E8F5EC !important;
+  border-color: #B7E4C7 !important;
+}
+html:not(.dark) .btn-pq-reset {
+  background-color: #FEE2E2 !important;
+  color: #DC2626 !important;
+  border-color: #FCA5A5 !important;
+}
+html:not(.dark) .btn-pq-reset:hover {
+  background-color: #FCD8D8 !important;
+  color: #B91C1C !important;
+}
+html:not(.dark) #btn-reset-all-discounts {
+  background-color: #FEE2E2 !important;
+  color: #DC2626 !important;
+  border-color: #FCA5A5 !important;
+}
+html:not(.dark) #btn-reset-all-discounts:hover {
+  background-color: #FCD8D8 !important;
+  color: #B91C1C !important;
+}
+
+/* Bloque de Ruedas */
+html:not(.dark) #view-produccion .grid-cols-1.lg\:grid-cols-2 > div {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+html:not(.dark) #view-produccion table thead tr {
+  border-bottom-color: var(--border-color) !important;
+}
+html:not(.dark) #view-produccion table thead th {
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) #view-produccion table tbody tr {
+  border-bottom-color: var(--border-subtle) !important;
+}
+html:not(.dark) #view-produccion table tbody tr:hover {
+  background-color: #FAF7F2 !important;
+}
+
+/* Panel Superior de Deliverys & Liquidación */
+html:not(.dark) #view-deliverys > div:first-child {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+html:not(.dark) #view-deliverys > div:first-child .bg-slate-950\/70 {
+  background-color: var(--bg-surface-subtle) !important;
+  border-color: var(--border-color) !important;
+}
+html:not(.dark) #btn-add-driver {
+  background-color: #FFFFFF !important;
+  color: var(--badge-delivery-text) !important;
+  border-color: var(--badge-delivery-border) !important;
+}
+html:not(.dark) #btn-add-driver:hover {
+  background-color: #EAF2F7 !important;
+}
+html:not(.dark) #btn-toggle-settlement-panel {
+  background-color: #EAF2F7 !important;
+  color: var(--badge-delivery-text) !important;
+  border-color: var(--badge-delivery-border) !important;
+}
+html:not(.dark) #btn-toggle-settlement-panel:hover {
+  background-color: #D3E5F0 !important;
+}
+html:not(.dark) #view-deliverys #container-settlement-table {
+  border-top-color: var(--border-color) !important;
+}
+html:not(.dark) #view-deliverys #container-settlement-table .bg-slate-950\/80 {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+}
+html:not(.dark) #view-deliverys #container-settlement-table table thead tr {
+  background-color: var(--bg-surface-subtle) !important;
+  border-bottom-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) #view-deliverys #container-settlement-table table tbody tr {
+  border-bottom-color: var(--border-subtle) !important;
+}
+html:not(.dark) .btn-revertir-liquidacion {
+  background-color: var(--bg-surface-subtle) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+html:not(.dark) .btn-revertir-liquidacion:hover {
+  background-color: #EAE2D4 !important;
+  color: var(--text-main) !important;
+}
+
+/* Modales (Fórmula Panadera, Agregar Repartidor, Vaciar Producción) */
+html:not(.dark) #formula-modal > div:nth-child(2),
+html:not(.dark) #modal-add-driver > div:nth-child(2),
+html:not(.dark) #modal-clear-confirm > div:nth-child(2) {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: 0 20px 40px -10px rgba(43, 30, 22, 0.25) !important;
+}
+html:not(.dark) #formula-modal > div:nth-child(2) > div:first-child {
+  background: var(--bg-surface-subtle) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+html:not(.dark) #formula-modal > div:nth-child(2) > div:nth-child(2) {
+  background: var(--bg-app) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+html:not(.dark) #formula-modal > div:nth-child(2) > div:last-child {
+  background: var(--bg-app) !important;
+  border-top-color: var(--border-color) !important;
+}
+html:not(.dark) #formula-modal table thead tr {
+  border-bottom-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) #formula-modal table tbody tr {
+  border-bottom-color: var(--border-subtle) !important;
+  color: var(--text-main) !important;
+}
+html:not(.dark) #modal-clear-confirm p.bg-slate-950 {
+  background-color: var(--bg-surface-subtle) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) #btn-cancel-clear,
+html:not(.dark) #btn-cancel-driver-modal {
+  background-color: var(--bg-surface-subtle) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Notificación Toast */
+html:not(.dark) #toast-notification {
+  background-color: #FFFFFF !important;
+  border-color: var(--status-ready-border) !important;
+  color: var(--status-ready-text) !important;
+  box-shadow: 0 10px 30px rgba(43, 30, 22, 0.12) !important;
+}
+
+/* Botones Auxiliares de TV */
+html:not(.dark) #btn-auto-rotate,
+html:not(.dark) #btn-refresh,
+html:not(.dark) #btn-fullscreen {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
+}
+html:not(.dark) #btn-auto-rotate:hover,
+html:not(.dark) #btn-refresh:hover,
+html:not(.dark) #btn-fullscreen:hover {
+  background-color: var(--bg-surface-subtle) !important;
+  color: var(--text-main) !important;
+}
+html:not(.dark) #btn-clear-production {
+  background-color: #FEE2E2 !important;
+  color: #DC2626 !important;
+  border-color: #FCA5A5 !important;
+}
+html:not(.dark) #btn-clear-production:hover {
+  background-color: #FCD8D8 !important;
+  color: #B91C1C !important;
+}
+
+/* Pantalla Completa */
+:fullscreen {
+  background-color: var(--bg-app);
+  padding: 1rem 1.5rem;
+  overflow-y: auto;
+}
+
+:-webkit-full-screen {
+  background-color: var(--bg-app);
+  padding: 1rem 1.5rem;
+  overflow-y: auto;
+}
+
+/* Modo Kiosk / TV pasivo */
+body.tv-kiosk-mode header {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+body.tv-kiosk-mode header nav {
+  display: none !important;
+}
+body.tv-kiosk-mode #btn-clear-production {
+  display: none !important;
+}
+body.tv-kiosk-mode #btn-config-api {
+  display: none !important;
+}
+body.tv-kiosk-mode #btn-refresh {
+  display: none !important;
+}
+body.tv-kiosk-mode main {
+  max-width: 96vw !important;
+}

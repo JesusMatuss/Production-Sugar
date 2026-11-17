@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUGAR - Pedidos & Producción TV</title>
+  
+  <!-- Script inicial de tema para prevenir parpadeo (Modo Claro Cálido de panadería por defecto) -->
+  <script>
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('sugar_theme');
+        // Por defecto: Modo Claro Cálido de panadería a menos que el usuario haya seleccionado 'dark'
+        if (savedTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              200: '#fde68a',
+              300: '#fcd34d',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+              700: '#b45309',
+              800: '#92400e',
+              900: '#78350f',
+            },
+            bakery: {
+              cream: '#FAF7F2',
+              surface: '#FFFFFF',
+              sand: '#F2ECE1',
+              wheat: '#E3D8C6',
+              espresso: '#2B1E16',
+              cacao: '#6E5849',
+              caramel: '#B46528',
+              caramelDark: '#96501B',
+              cinnamon: '#D99B52',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="bg-[#0b0f19] text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- ============================================================== -->
+  <!-- HEADER PRINCIPAL -->
+  <!-- ============================================================== -->
+  <header class="sticky top-0 z-40 bg-[#0f172a]/95 backdrop-blur-md border-b border-slate-800/80 px-4 lg:px-8 py-3.5 shadow-xl">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Brand Logo & Name -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center shadow-lg shadow-amber-500/20 text-slate-950 font-black text-xl tracking-tighter">
+          S
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-black text-xl tracking-tight text-white">SUGAR</h1>
+            <span class="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">Planta</span>
+          </div>
+          <p class="text-xs text-slate-400 font-medium">Pedidos & Producción de Panadería</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex items-center p-1 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-inner">
+        <button id="nav-pedidos" class="px-3.5 lg:px-4 py-2 rounded-xl font-semibold text-xs lg:text-sm text-slate-400 hover:text-white hover:bg-slate-800/80 transition-all">
+          📋 Pedidos
+        </button>
+        <button id="nav-produccion" class="px-3.5 lg:px-4 py-2.5 rounded-xl font-bold text-xs lg:text-sm bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 transition-all">
+          📺 Producción TV
+        </button>
+        <button id="nav-entregas" class="px-3.5 lg:px-4 py-2 rounded-xl font-semibold text-xs lg:text-sm text-slate-400 hover:text-white hover:bg-slate-800/80 transition-all">
+          🚚 Entregas
+        </button>
+        <button id="nav-deliverys" class="px-3.5 lg:px-4 py-2 rounded-xl font-semibold text-xs lg:text-sm text-slate-400 hover:text-white hover:bg-slate-800/80 transition-all flex items-center gap-1.5">
+          <span>🛵</span> Deliverys
+          <span id="badge-nav-deliverys" class="hidden px-1.5 py-0.2 rounded-full bg-purple-500/30 text-purple-300 text-[10px] font-bold border border-purple-500/40">0</span>
+        </button>
+      </nav>
+
+      <!-- System Controls & Clock -->
+      <div class="flex items-center gap-2.5 sm:gap-3">
+        <!-- Botón de Refrescar Manual (Visible para actualizar datos a demanda) -->
+        <button id="btn-manual-refresh" title="Actualizar datos desde Google Sheets ahora" class="flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 rounded-xl font-black text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:brightness-110 text-slate-950 shadow-md shadow-amber-500/25 active:scale-95 transition-all cursor-pointer">
+          <svg id="icon-refresh-manual" class="w-4 h-4 text-slate-950 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          <span id="text-refresh-manual">Actualizar</span>
+        </button>
+
+        <!-- Live Sync Badge -->
+        <div id="sync-badge" class="hidden sm:flex items-center text-xs font-medium text-emerald-300 bg-emerald-950/60 px-3 py-1.5 rounded-full border border-emerald-500/30">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2"></span> En vivo
+        </div>
+
+        <!-- TV Live Clock -->
+        <div id="clock-container" class="hidden md:flex bg-slate-900 px-3.5 py-1.5 rounded-xl border border-slate-800 items-center gap-2 shadow-inner">
+          <span class="text-xs text-slate-500">🕒</span>
+          <span id="tv-clock" class="font-mono text-sm font-bold text-amber-300 tracking-wider">--:--:--</span>
+        </div>
+
+        <!-- Botón de Selector de Tema (Modo Claro Cálido vs Modo Oscuro) -->
+        <button id="btn-theme-toggle" type="button" title="Alternar entre Modo Claro Cálido y Modo Oscuro" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E3D8C6] bg-[#F2ECE1] text-[#2B1E16] hover:bg-[#EAE2D4] font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95">
+          <span id="theme-toggle-icon" class="text-base leading-none">🌙</span>
+          <span id="theme-toggle-text" class="hidden sm:inline">Modo Oscuro</span>
+        </button>
+
+        <!-- Settings Button -->
+        <button id="btn-config-api" title="Configurar conexión con Google Apps Script" class="p-2 rounded-xl bg-slate-900 text-slate-400 hover:text-amber-400 border border-slate-800 hover:border-slate-700 transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Notification Toast Global (Visible en todas las vistas) -->
+  <div id="toast-notification" class="fixed top-20 right-4 sm:right-6 z-50 hidden p-4 max-w-md rounded-2xl bg-slate-900/95 backdrop-blur-md border-2 border-emerald-500/40 text-emerald-300 text-sm font-semibold flex items-center justify-between gap-4 shadow-2xl animate-fade-in">
+    <div class="flex items-center gap-2.5">
+      <span class="text-xl">✅</span>
+      <span id="toast-message">Operación realizada con éxito.</span>
+    </div>
+    <button onclick="document.getElementById('toast-notification').classList.add('hidden')" class="text-emerald-400 hover:text-white text-xs font-bold px-2 py-1 rounded-lg bg-slate-800 border border-slate-700">
+      ✕
+    </button>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- VISTA 1: GESTIÓN DE PEDIDOS -->
+  <!-- ============================================================== -->
+  <main id="view-pedidos" class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-8 hidden">
+    
+    <!-- Action Toolbar & Filters -->
+    <div class="bg-slate-900/95 rounded-3xl p-6 border border-slate-800 shadow-xl mb-8 flex flex-col gap-5">
+      
+      <!-- Fila 1: Buscador y Filtros -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        
+        <!-- Search Input -->
+        <div class="relative">
+          <svg class="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input type="text" id="input-search-orders" placeholder="Buscar cliente o pan..." class="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors">
+        </div>
+
+        <!-- Filtro por Estado -->
+        <div class="relative">
+          <select id="filter-status" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-amber-500 appearance-none cursor-pointer">
+            <option value="ALL">📋 Todos los estados</option>
+            <option value="PENDIENTE" selected>⏳ Solo Pendientes</option>
+            <option value="EN_PRODUCCION">📺 Solo En Producción</option>
+            <option value="REALIZADO">🥖 Solo Realizados (Fábrica)</option>
+            <option value="ENTREGADO">✅ Solo Entregados</option>
+          </select>
+          <div class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">▼</div>
+        </div>
+
+        <!-- Filtro por Modalidad -->
+        <div class="relative">
+          <select id="filter-delivery" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-amber-500 appearance-none cursor-pointer">
+            <option value="ALL">📍 Todas las entregas</option>
+            <option value="RETIRO">🏪 Retiro en local</option>
+            <option value="DELIVERY">🛵 Envío / Delivery</option>
+          </select>
+          <div class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">▼</div>
+        </div>
+
+        <!-- Orden Cronológico -->
+        <div class="relative">
+          <select id="filter-sort" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-amber-500 appearance-none cursor-pointer">
+            <option value="ASC">🕒 Más antiguos primero</option>
+            <option value="DESC">🕒 Más recientes primero</option>
+          </select>
+          <div class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">▼</div>
+        </div>
+
+      </div>
+
+      <!-- Fila 2: Resumen y Botón Principal de Envío -->
+      <div class="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-4">
+        
+        <!-- Métricas Rápidas de Pedidos -->
+        <div class="flex items-center gap-3 text-xs text-slate-400">
+          <span id="stat-total-orders" class="font-medium text-slate-300">Total: 0 pedidos</span>
+          <span>•</span>
+          <span id="stat-pending-orders" class="text-amber-400 font-semibold">0 pendientes</span>
+          <span>•</span>
+          <span id="stat-prod-orders" class="text-emerald-400 font-semibold">0 en producción</span>
+          <span>•</span>
+          <span id="stat-total-monto" class="text-emerald-400 font-bold font-mono">$0.00 total</span>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="flex items-center gap-3">
+          <button id="btn-select-all" class="px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all">
+            Seleccionar Todos los Pendientes
+          </button>
+
+          <button id="btn-send-production" disabled class="flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-sm bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700 transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            <span>Enviar a Producción (<span id="selected-count">0</span> ítems)</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Grid of Client Orders -->
+    <div id="orders-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Tarjetas inyectadas dinámicamente por app.js -->
+    </div>
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- VISTA 2: PRODUCCIÓN (MODO TV / DARK MODE ALTO CONTRASTE) -->
+  <!-- ============================================================== -->
+  <main id="view-produccion" class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-8 flex flex-col gap-6">
+    
+    <!-- TV Control Bar & Segment Selector -->
+    <div class="bg-slate-900/95 rounded-3xl p-4 lg:p-5 border border-slate-800 shadow-2xl flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- 1. Grupo Selector de Masa (Navegación Primaria en Planta) -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button data-dough="brioche" class="btn-dough px-5 py-2.5 rounded-xl font-black text-sm tracking-wide bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-lg shadow-amber-500/30 scale-105 transition-all">
+          🟡 Masa Brioche
+        </button>
+        <button data-dough="papa" class="btn-dough px-4 py-2.5 rounded-xl font-bold text-sm text-slate-300 hover:text-white bg-slate-800/90 border border-slate-700/60 transition-all">
+          🥔 Pan de Papa
+        </button>
+        <button data-dough="dulce" class="btn-dough px-4 py-2.5 rounded-xl font-bold text-sm text-slate-300 hover:text-white bg-slate-800/90 border border-slate-700/60 transition-all">
+          🍬 Pan Dulce
+        </button>
+      </div>
+
+      <!-- 2. Grupo Acciones de Consulta y Visualización TV -->
+      <div class="flex items-center gap-2.5 flex-wrap">
+        
+        <!-- Botón Ver Fórmula Panadera -->
+        <button id="btn-formula" class="flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs lg:text-sm bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/25 hover:brightness-110 transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+          <span>📐 Ver Fórmula</span>
+        </button>
+
+        <!-- Botón Copiar Toppings para Hornero -->
+        <button id="btn-copy-hornero" title="Copiar consolidado de Toppings de Enrollados para el Hornero" class="flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs lg:text-sm bg-gradient-to-r from-amber-500 to-orange-400 hover:brightness-110 text-slate-950 shadow-lg shadow-amber-500/25 transition-all cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+          <span>📋 Copiar Toppings Hornero</span>
+        </button>
+
+        <!-- Toggle Auto Rotate (Carrusel TV) -->
+        <button id="btn-auto-rotate" title="Rotar automáticamente entre masas en TV" class="px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          <span class="hidden sm:inline">Carrusel TV</span>
+        </button>
+
+        <!-- Refresh Button -->
+        <button id="btn-refresh" title="Actualizar datos ahora" class="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        </button>
+
+        <!-- Fullscreen Button -->
+        <button id="btn-fullscreen" title="Modo Pantalla Completa para TV (F11)" class="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+        </button>
+
+        <!-- Separador visual vertical para aislar la acción destructiva -->
+        <div class="hidden md:block w-px h-7 bg-slate-700/80 mx-1"></div>
+
+        <!-- Botón Vaciar Producción (Aislado y con estilo de advertencia claro) -->
+        <button id="btn-clear-production" title="Eliminar/Vaciar todo lo enviado a Producción" class="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-bold text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/50 transition-all">
+          <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          <span>Vaciar Producción</span>
+        </button>
+
+      </div>
+
+    </div>
+
+    <!-- Metrics Bar (Large display for TV visibility) -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="bg-gradient-to-br from-slate-900 to-slate-900/90 rounded-3xl p-5 border border-slate-800 shadow-xl flex items-center justify-between">
+        <div>
+          <span class="text-xs uppercase tracking-wider font-bold text-slate-400">Masa Total Requerida</span>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span id="tv-total-kg" class="text-4xl lg:text-5xl font-black text-amber-400 tv-display-num">0.00</span>
+            <span class="text-lg font-bold text-slate-400">Kg</span>
+          </div>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 text-2xl">
+          ⚖️
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-slate-900 to-slate-900/90 rounded-3xl p-5 border border-slate-800 shadow-xl flex items-center justify-between">
+        <div>
+          <span class="text-xs uppercase tracking-wider font-bold text-slate-400">Total Panes (Unidades)</span>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span id="tv-total-panes" class="text-4xl lg:text-5xl font-black text-white tv-display-num">0</span>
+            <span class="text-lg font-bold text-slate-400">un</span>
+          </div>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 text-2xl">
+          🍞
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-slate-900 to-slate-900/90 rounded-3xl p-5 border border-slate-800 shadow-xl flex items-center justify-between">
+        <div>
+          <span class="text-xs uppercase tracking-wider font-bold text-slate-400">Total Paquetes</span>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span id="tv-total-paquetes" class="text-4xl lg:text-5xl font-black text-emerald-400 tv-display-num">0</span>
+            <span class="text-lg font-bold text-slate-400">pq</span>
+          </div>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-2xl">
+          📦
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Dough Title -->
+    <div class="flex items-center justify-between px-2">
+      <div class="flex items-center gap-3">
+        <h2 id="tv-dough-title" class="text-2xl lg:text-3xl font-black text-white tracking-tight">Masa Brioche Especial</h2>
+        <span id="tv-dough-badge" class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+          🟡 Brioche
+        </span>
+      </div>
+      <span class="text-xs text-slate-400 font-medium">Picadora estándar: 36 unidades por rueda</span>
+    </div>
+
+    <!-- SECTION: CONSOLIDADO DE TOPPINGS & PRESENTACIONES -->
+    <div>
+      <div class="flex items-center justify-between gap-3 mb-4 px-2 flex-wrap">
+        <div class="flex items-center gap-2">
+          <span class="text-amber-400 font-bold text-lg">●</span>
+          <h3 class="text-lg font-black uppercase tracking-wider text-slate-200">1. Consolidado por Toppings y Productos</h3>
+        </div>
+        <div id="container-discount-actions" class="flex items-center gap-2">
+          <!-- Botón para Restablecer Todos los Descuentos de Paquetes en Producción -->
+          <button id="btn-reset-all-discounts" type="button" title="Restablecer todos los paquetes descontados por no retiro a sus valores originales" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-white border border-rose-500/30 transition-all cursor-pointer shadow-sm active:scale-95">
+            <span>↺</span>
+            <span>Restablecer Descuentos</span>
+            <span id="badge-active-discounts-count" class="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-black">0</span>
+          </button>
+        </div>
+      </div>
+      <div id="tv-toppings-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <!-- Inyectado por app.js -->
+      </div>
+    </div>
+
+    <!-- SECTION: BLOQUE DE RUEDAS (PICADORA DE 36 UNIDADES) -->
+    <div class="mt-4">
+      <div class="flex items-center justify-between mb-4 px-2">
+        <div class="flex items-center gap-2">
+          <span class="text-amber-400 font-bold text-lg">●</span>
+          <h3 class="text-lg font-black uppercase tracking-wider text-slate-200">2. Bloque de Ruedas para Producción</h3>
+        </div>
+        <span class="text-xs text-slate-400 font-mono">Picadora: 36 un (&lt;120g) / 18 un (≥120g por capacidad máx 4kg) • Redondeo &gt; 0.5 (+1 Rueda, ajuste negativo compensatorio)</span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Sub-bloque: Hamburguesas -->
+        <div class="bg-slate-900/90 rounded-3xl p-6 border-2 border-slate-800 shadow-2xl">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+            <h4 class="text-lg font-black text-white flex items-center gap-2">
+              <span>🍔</span> Hamburguesas en Ruedas
+            </h4>
+            <span class="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">36 un (&lt;120g) | 18 un (≥120g)</span>
+          </div>
+          <table class="w-full text-left">
+            <thead>
+              <tr class="text-xs uppercase font-semibold text-slate-400 border-b border-slate-800 pb-2">
+                <th class="py-2 px-4">Gramaje y Peso Rueda</th>
+                <th class="py-2 px-4 text-center">CANTIDAD</th>
+                <th class="py-2 px-4 text-right">
+                  UNIDADES (Ajuste)
+                  <span class="text-[10px] text-slate-500 block font-normal normal-case mt-0.5">🟢 (+) Sobrantes &nbsp;|&nbsp; 🔴 (-) Rueda extra</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="table-ruedas-hamburguesas">
+              <!-- Inyectado dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Sub-bloque: Enrollados -->
+        <div class="bg-slate-900/90 rounded-3xl p-6 border-2 border-slate-800 shadow-2xl">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+            <h4 class="text-lg font-black text-white flex items-center gap-2">
+              <span>🌭</span> Enrollados (Perros, Delis & Trenzadas)
+            </h4>
+            <span class="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">36 un (&lt;120g) | 18 un (≥120g)</span>
+          </div>
+          <table class="w-full text-left">
+            <thead>
+              <tr class="text-xs uppercase font-semibold text-slate-400 border-b border-slate-800 pb-2">
+                <th class="py-2 px-4">Gramaje y Peso Rueda</th>
+                <th class="py-2 px-4 text-center">CANTIDAD</th>
+                <th class="py-2 px-4 text-right">
+                  UNIDADES (Ajuste)
+                  <span class="text-[10px] text-slate-500 block font-normal normal-case mt-0.5">🟢 (+) Sobrantes &nbsp;|&nbsp; 🔴 (-) Rueda extra</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="table-ruedas-enrollados">
+              <!-- Inyectado dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- VISTA 3: ENTREGAS Y DESPACHO -->
+  <!-- ============================================================== -->
+  <main id="view-entregas" class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-8 hidden">
+    <!-- Toolbar de Entregas -->
+    <div class="bg-slate-900/95 rounded-3xl p-6 border border-slate-800 shadow-xl mb-8 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+      <div class="relative flex-1 max-w-md">
+        <svg class="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        <input type="text" id="input-search-entregas" placeholder="Buscar cliente, teléfono o dirección..." class="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors">
+      </div>
+
+      <div class="flex items-center gap-3 flex-wrap">
+        <select id="filter-status-entregas" class="px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer">
+          <option value="POR_DESPACHAR" selected>🔥 Por Despachar (En Planta / Realizados)</option>
+          <option value="EN_PRODUCCION">📺 En Producción TV</option>
+          <option value="REALIZADO">🥖 Fabricados / Realizados</option>
+          <option value="ENTREGADO">✅ Ya Entregados</option>
+          <option value="ALL">📋 Todos los estados</option>
+        </select>
+
+        <select id="filter-delivery-entregas" class="px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer">
+          <option value="ALL">📍 Todas las modalidades</option>
+          <option value="RETIRO">🏪 Retiro en local</option>
+          <option value="DELIVERY">🛵 Envío / Delivery</option>
+        </select>
+
+        <span id="stat-entregas-count" class="px-4 py-2 rounded-xl bg-slate-800/80 text-amber-300 font-bold text-xs border border-slate-700/80 whitespace-nowrap">
+          0 pedidos en curso
+        </span>
+      </div>
+    </div>
+
+    <!-- Grid de Tarjetas de Entrega -->
+    <div id="entregas-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Inyectado dinámicamente -->
+    </div>
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- VISTA 4: DELIVERYS & LIQUIDACIÓN DE REPARTIDORES -->
+  <!-- ============================================================== -->
+  <main id="view-deliverys" class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-8 hidden">
+    
+    <!-- Panel Superior: Resumen de Liquidación de Jornada (Cierre de Caja) -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800/80 rounded-3xl p-6 border-2 border-purple-500/30 shadow-2xl mb-8">
+      
+      <!-- Encabezado del Panel -->
+      <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-2xl text-purple-300 shadow-lg shadow-purple-500/10">
+            🛵
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-black text-white tracking-tight">Control de Deliverys & Liquidación</h2>
+              <span class="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">Cierre de Jornada</span>
+            </div>
+            <p class="text-xs text-slate-400">Control de pedidos para reparto, asignación de motorizados y pago al cierre de turno</p>
+          </div>
+        </div>
+
+        <!-- Botones de Acción Rápida -->
+        <div class="flex items-center gap-3 flex-wrap">
+          <button id="btn-add-driver" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-purple-300 hover:text-white border border-purple-500/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+            <span>➕</span> Agregar Repartidor
+          </button>
+          <button id="btn-toggle-settlement-panel" class="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+            <span>📊</span> Ver Tabla de Liquidación
+          </button>
+        </div>
+      </div>
+
+      <!-- Tarjetas de Métricas de la Jornada -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-5">
+        
+        <div class="bg-slate-950/70 p-4 rounded-2xl border border-slate-800/80 shadow-inner">
+          <div class="flex items-center justify-between text-xs text-slate-400 font-semibold mb-1">
+            <span>Envíos Totales</span>
+            <span class="text-purple-400">🛵</span>
+          </div>
+          <div class="text-2xl font-black text-white font-mono" id="stat-deliv-total-count">0</div>
+          <span class="text-[11px] text-slate-400" id="stat-deliv-total-unidades">0 paquetes</span>
+        </div>
+
+        <div class="bg-slate-950/70 p-4 rounded-2xl border border-slate-800/80 shadow-inner">
+          <div class="flex items-center justify-between text-xs text-slate-400 font-semibold mb-1">
+            <span>Total Costo Delivery</span>
+            <span class="text-emerald-400">💵</span>
+          </div>
+          <div class="text-2xl font-black text-emerald-400 font-mono" id="stat-deliv-total-cost">$0.00</div>
+          <span class="text-[11px] text-slate-400">Tarifas de reparto</span>
+        </div>
+
+        <div class="bg-slate-950/70 p-4 rounded-2xl border border-slate-800/80 shadow-inner">
+          <div class="flex items-center justify-between text-xs text-slate-400 font-semibold mb-1">
+            <span>Por Pagar a Repartidores</span>
+            <span class="text-amber-400">⏳</span>
+          </div>
+          <div class="text-2xl font-black text-amber-400 font-mono" id="stat-deliv-pending-cost">$0.00</div>
+          <span class="text-[11px] text-amber-300/80" id="stat-deliv-pending-count">0 envíos por liquidar</span>
+        </div>
+
+        <div class="bg-slate-950/70 p-4 rounded-2xl border border-slate-800/80 shadow-inner">
+          <div class="flex items-center justify-between text-xs text-slate-400 font-semibold mb-1">
+            <span>Liquidado / Pagado</span>
+            <span class="text-emerald-400">✅</span>
+          </div>
+          <div class="text-2xl font-black text-emerald-300 font-mono" id="stat-deliv-paid-cost">$0.00</div>
+          <span class="text-[11px] text-emerald-400/80" id="stat-deliv-paid-count">0 envíos liquidados</span>
+        </div>
+
+      </div>
+
+      <!-- Tabla Colapsable de Liquidación por Repartidor -->
+      <div id="container-settlement-table" class="mt-6 pt-5 border-t border-slate-800/80 hidden">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-black text-slate-200 uppercase tracking-wider flex items-center gap-2">
+            <span>📋</span> Resumen de Liquidación por Repartidor (Para Cierre de Turno)
+          </h3>
+          <span class="text-xs text-slate-400 font-mono">Actualización en tiempo real</span>
+        </div>
+        <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/80">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-800 uppercase tracking-wider font-bold text-slate-400 bg-slate-900/60">
+                <th class="py-3 px-4">Repartidor</th>
+                <th class="py-3 px-3 text-center">Envíos</th>
+                <th class="py-3 px-3 text-center">Entregados</th>
+                <th class="py-3 px-4 text-right">Total a Pagar</th>
+                <th class="py-3 px-4 text-center">Estado de Liquidación</th>
+                <th class="py-3 px-4 text-right">Acción de Cierre</th>
+              </tr>
+            </thead>
+            <tbody id="table-settlement-rows">
+              <!-- Inyectado dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Toolbar de Filtros y Búsqueda para Deliverys -->
+    <div class="bg-slate-900/95 rounded-3xl p-5 border border-slate-800 shadow-xl mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+      <div class="relative flex-1 max-w-md">
+        <svg class="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        <input type="text" id="input-search-deliverys" placeholder="Buscar cliente, repartidor, dirección..." class="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors">
+      </div>
+
+      <div class="flex items-center gap-3 flex-wrap">
+        <select id="filter-driver-deliverys" class="px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-purple-500 cursor-pointer">
+          <option value="ALL">🛵 Todos los repartidores</option>
+          <!-- Inyectado dinámicamente -->
+        </select>
+
+        <select id="filter-status-deliverys" class="px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-purple-500 cursor-pointer">
+          <option value="ALL">📋 Todos los estados</option>
+          <option value="POR_DESPACHAR">🔥 Por Despachar</option>
+          <option value="ENTREGADO">✅ Ya Entregados</option>
+          <option value="PENDIENTE_PAGO">⏳ Pendientes de Pago</option>
+          <option value="LIQUIDADO">💵 Ya Liquidados</option>
+        </select>
+
+        <span id="stat-deliverys-badge-count" class="px-4 py-2 rounded-xl bg-purple-950/60 text-purple-300 font-bold text-xs border border-purple-500/30 whitespace-nowrap">
+          0 pedidos en delivery
+        </span>
+      </div>
+    </div>
+
+    <!-- Grid de Tarjetas de Deliverys -->
+    <div id="deliverys-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Inyectado dinámicamente -->
+    </div>
+
+  </main>
+
+  <!-- Modal: Agregar Nuevo Repartidor -->
+  <div id="modal-add-driver" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div id="modal-driver-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-sm"></div>
+    <div class="relative bg-slate-900 w-full max-w-sm rounded-3xl border-2 border-purple-500/40 shadow-2xl p-6 z-10 animate-fade-in">
+      <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
+        <h3 class="text-base font-black text-white flex items-center gap-2">
+          <span>🛵</span> Agregar Repartidor
+        </h3>
+        <button id="btn-close-driver-modal" class="text-slate-400 hover:text-white text-sm">✕</button>
+      </div>
+      <p class="text-xs text-slate-400 mb-4">Ingresa el nombre o apodo del motorizado/repartidor para registrarlo en el sistema:</p>
+      <input type="text" id="input-new-driver-name" placeholder="Ej: Yonaiber" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white mb-4 focus:outline-none focus:border-purple-500">
+      <div class="flex justify-end gap-3">
+        <button id="btn-cancel-driver-modal" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">Cancelar</button>
+        <button id="btn-save-driver-modal" class="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/30">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: CONFIRMACIÓN PARA VACIAR PRODUCCIÓN -->
+  <!-- ============================================================== -->
+  <div id="modal-clear-confirm" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div id="modal-clear-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-sm"></div>
+    <div class="relative bg-slate-900 w-full max-w-md rounded-3xl border-2 border-red-500/40 shadow-2xl p-6 z-10 animate-fade-in">
+      <div class="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 text-2xl mb-4">
+        ⚠️
+      </div>
+      <h3 class="text-xl font-black text-white tracking-tight">¿Vaciar pantalla de Producción?</h3>
+      <p class="text-sm text-slate-400 mt-2">
+        Se retirarán de la pantalla de producción <strong id="clear-orders-count" class="text-white">0 pedidos</strong> (<span id="clear-orders-kg" class="text-amber-400">0.00 kg</span> de masa).
+      </p>
+      <p class="text-xs text-slate-500 mt-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
+        ℹ️ Estos pedidos volverán al estado <strong>Pendientes</strong> en la pestaña de Pedidos y se sincronizará con Google Sheets para que no se pierdan.
+      </p>
+      <div class="mt-6 flex items-center justify-end gap-3">
+        <button id="btn-cancel-clear" class="px-5 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-sm font-bold hover:bg-slate-700 transition-all">
+          Cancelar
+        </button>
+        <button id="btn-confirm-clear" class="px-5 py-2.5 rounded-xl font-black text-sm bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30 transition-all">
+          Sí, Vaciar Producción
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: FÓRMULA PANADERA (ESCALADO DINÁMICO) -->
+  <!-- ============================================================== -->
+  <div id="formula-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <!-- Backdrop -->
+    <div id="formula-modal-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-sm"></div>
+
+    <!-- Modal Box -->
+    <div class="relative bg-slate-900 w-full max-w-2xl rounded-3xl border-2 border-slate-700 shadow-2xl overflow-hidden z-10 flex flex-col max-h-[90vh]">
+      
+      <!-- Modal Header -->
+      <div class="p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <h3 id="modal-dough-title" class="text-xl font-black text-white tracking-tight">Fórmula Panadera</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Pesaje exacto escalado dinámicamente a la masa de los pedidos en producción</p>
+        </div>
+        <button id="btn-close-modal" class="p-2 rounded-xl text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <!-- Target Mass Indicator -->
+      <div class="px-6 py-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
+        <span class="text-sm font-semibold text-slate-300">Masa Total Objetivo a Preparar:</span>
+        <div class="text-right">
+          <span id="formula-target-kg" class="text-2xl font-black text-amber-400 font-mono">0.00</span>
+          <span class="text-sm font-bold text-slate-400">Kg de masa</span>
+        </div>
+      </div>
+
+      <!-- Table Body -->
+      <div class="p-6 overflow-y-auto flex-1">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-3">
+              <th class="pb-3 px-4">Ingrediente</th>
+              <th class="pb-3 px-4 text-center">% Panadero</th>
+              <th class="pb-3 px-4 text-right">Gramos (g)</th>
+              <th class="pb-3 px-4 text-right">Kilos (kg)</th>
+            </tr>
+          </thead>
+          <tbody id="formula-table-body">
+            <!-- Inyectado por app.js -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <span>Fórmula de alta precisión para amasadora industrial</span>
+        <button onclick="window.print()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold border border-slate-700 transition-all">
+          🖨️ Imprimir / Guardar
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="./catalogo.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
+
