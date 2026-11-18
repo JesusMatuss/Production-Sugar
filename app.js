@@ -30,7 +30,11 @@ const state = {
   filterDriverDeliverys: 'ALL',
   filterStatusDeliverys: 'ALL',
   showSettlementPanel: false,
-  productionDiscounts: {} // { [discountKey]: paquetesDescontados }
+  productionDiscounts: {}, // { [discountKey]: paquetesDescontados }
+  modalCategoryFilter: 'ALL',
+  currentProductosConsolidados: {},
+  currentTotalPanes: 0,
+  currentTotalPaquetes: 0
 };
 
 // --- BASE DE FÓRMULAS PANADERAS (PORCENTAJES Y RECETAS BASE) ---
@@ -944,6 +948,21 @@ function setupEventListeners() {
   const btnModalReset = document.getElementById('btn-modal-reset-discounts');
   if (btnModalReset) btnModalReset.addEventListener('click', resetAllProductionDiscounts);
 
+  // Filtros rápidos por categoría en modal consolidado (Req 2.A)
+  document.querySelectorAll('.btn-modal-cat').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      state.modalCategoryFilter = e.currentTarget.dataset.cat || 'ALL';
+      document.querySelectorAll('.btn-modal-cat').forEach(b => {
+        if (b.dataset.cat === state.modalCategoryFilter) {
+          b.className = "btn-modal-cat px-3 py-1 rounded-lg text-xs font-black transition-all bg-amber-500 text-slate-950 shadow-sm";
+        } else {
+          b.className = "btn-modal-cat px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white";
+        }
+      });
+      renderModalConsolidadoProductos(state.currentProductosConsolidados, state.currentTotalPanes, state.currentTotalPaquetes);
+    });
+  });
+
   // Cierre accesible de modales con tecla Escape
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -1757,35 +1776,37 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-// Colores distintivos y badges de alta legibilidad por tipo de Topping (Req 4.2)
+// Colores distintivos y badges de alta legibilidad por tipo de Topping (Req 3)
 function getToppingBadgeHtml(toppingName, extraClass = '') {
   const raw = (toppingName || '').trim();
-  const norm = raw.toLowerCase();
+  const norm = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
   let badgeClass = 'topping-badge-natural';
   let icon = '🍞';
 
-  if (norm.includes('ajonjol') || norm.includes('sesamo') || norm.includes('sésamo')) {
+  if (norm.includes('ajon') && norm.includes('oreg')) {
+    badgeClass = 'topping-badge-ajon-oreg';
+    icon = '🌿';
+  } else if (norm.includes('ajon') && norm.includes('sesam')) {
+    badgeClass = 'topping-badge-ajon-sesamo';
+    icon = '✨';
+  } else if (norm.includes('ajon') || norm.includes('sesam')) {
     badgeClass = 'topping-badge-ajonjoli';
     icon = '✨';
-  } else if (norm.includes('oregan') || norm.includes('orégan') || norm.includes('hierba')) {
+  } else if (norm.includes('oregan') || norm.includes('hierba')) {
     badgeClass = 'topping-badge-oregano';
     icon = '🌿';
   } else if (norm.includes('queso') || norm.includes('parmesan') || norm.includes('cheddar')) {
     badgeClass = 'topping-badge-parmesano';
     icon = '🧀';
-  } else if (norm.includes('amapola') || norm.includes('semilla') || norm.includes('chia') || norm.includes('chía')) {
+  } else if (norm.includes('amapola') || norm.includes('semilla') || norm.includes('chia')) {
     badgeClass = 'topping-badge-amapola';
     icon = '🌱';
-  } else if (!norm || norm.includes('sin') || norm.includes('natural') || norm.includes('ningun') || norm.includes('ningún')) {
+  } else if (!norm || norm.includes('sin') || norm.includes('natural') || norm.includes('ningun')) {
     badgeClass = 'topping-badge-natural';
     icon = '🍞';
   } else {
-    // Hash determinístico para toppings adicionales desde Google Sheets
-    let hash = 0;
-    for (let i = 0; i < norm.length; i++) hash = (hash << 5) - hash + norm.charCodeAt(i);
-    const variantIndex = Math.abs(hash) % 3;
-    badgeClass = `topping-badge-dynamic-${variantIndex}`;
+    badgeClass = 'topping-badge-otros';
     icon = '🥯';
   }
 
@@ -2407,9 +2428,14 @@ function closeToppingsModal() {
 }
 
 // ==========================================
-// RENDERIZAR CONSOLIDADO POR PRODUCTOS EN MODAL (Req 4.1)
+// RENDERIZAR CONSOLIDADO POR PRODUCTOS EN MODAL (REQ 2 - ALTA DENSIDAD)
 // ==========================================
 function renderModalConsolidadoProductos(productosConsolidados, totalPanesUnidades, totalPaquetes) {
+  // Guardar en estado para filtros de categoría reactivos
+  state.currentProductosConsolidados = productosConsolidados || {};
+  state.currentTotalPanes = totalPanesUnidades || 0;
+  state.currentTotalPaquetes = totalPaquetes || 0;
+
   const container = document.getElementById('modal-products-grid');
   const badgeDough = document.getElementById('modal-toppings-dough-badge');
   const metricsEl = document.getElementById('modal-toppings-metrics-text');
@@ -2420,140 +2446,136 @@ function renderModalConsolidadoProductos(productosConsolidados, totalPanesUnidad
   }
 
   if (metricsEl) {
-    metricsEl.innerHTML = `Total en producción: <strong class="text-amber-300 font-bold">${totalPanesUnidades.toLocaleString()} un</strong> • <strong class="text-slate-200 font-bold">${totalPaquetes.toLocaleString()} pq</strong>`;
+    metricsEl.innerHTML = `Total en producción: <strong class="text-amber-300 font-bold">${(totalPanesUnidades || 0).toLocaleString()} un</strong> • <strong class="text-slate-100 font-bold">${(totalPaquetes || 0).toLocaleString()} pq</strong>`;
   }
 
   if (!container) return;
 
-  const productsList = Object.values(productosConsolidados || {});
+  let productsList = Object.values(productosConsolidados || {});
+
+  // Filtrado rápido por categoría en el modal (Req 2.A)
+  if (state.modalCategoryFilter === 'HAMBURGUESA') {
+    productsList = productsList.filter(p => p.subtipo === 'hamburguesa');
+  } else if (state.modalCategoryFilter === 'ENROLLADOS') {
+    productsList = productsList.filter(p => p.subtipo === 'enrollado' || p.tipoMolde === 'ENROLLADOS');
+  } else if (state.modalCategoryFilter === 'PANES') {
+    productsList = productsList.filter(p => p.tipoMolde === 'GENERAL' || (!['hamburguesa', 'enrollado'].includes(p.subtipo)));
+  }
+
   if (productsList.length === 0) {
     container.innerHTML = `
-      <div class="col-span-full py-16 text-center text-slate-500 bg-slate-900/40 rounded-3xl border border-slate-800">
-        <p class="text-2xl font-bold text-slate-400">No hay pedidos en producción para esta masa.</p>
-        <p class="text-sm text-slate-500 mt-2">Envía pedidos desde la sección "Pedidos" para visualizarlos aquí en planta.</p>
+      <div class="col-span-full py-16 text-center text-slate-400 bg-slate-900/60 rounded-3xl border border-slate-800">
+        <p class="text-xl font-bold text-slate-300">No hay productos en producción para esta selección.</p>
+        <p class="text-xs text-slate-400 mt-1">Prueba cambiando la categoría arriba o enviando pedidos desde la sección "Pedidos".</p>
       </div>`;
     return;
   }
 
-  // Ordenar productos: mayor gramaje primero, luego alfabéticamente
-  productsList.sort((a, b) => (b.peso - a.peso) || String(a.producto || '').localeCompare(String(b.producto || '')));
+  // Agrupación visual y ordenamiento: Hamburguesas Con Molde -> Hamburguesas Sin Molde -> Enrollados/Perros -> Panes
+  function getGroupPriority(prod) {
+    if (prod.tipoMolde === 'CON_MOLDE' && prod.subtipo === 'hamburguesa') return 1;
+    if (prod.tipoMolde === 'SIN_MOLDE' && prod.subtipo === 'hamburguesa') return 2;
+    if (prod.subtipo === 'enrollado' || prod.tipoMolde === 'ENROLLADOS') return 3;
+    return 4;
+  }
 
+  productsList.sort((a, b) => {
+    const prioA = getGroupPriority(a);
+    const prioB = getGroupPriority(b);
+    if (prioA !== prioB) return prioA - prioB;
+    if (b.peso !== a.peso) return b.peso - a.peso;
+    return String(a.producto || '').localeCompare(String(b.producto || ''));
+  });
+
+  // Renderizado de tarjetas compactas de alta densidad (Req 2.B)
   container.innerHTML = productsList.map(prod => {
     const cfg = SUBGRUPOS_CONFIG[prod.tipoMolde] || { titulo: prod.tipoMolde, badgeClass: 'text-slate-300 border-slate-700 bg-slate-800' };
     const toppingsList = Object.values(prod.toppings || {});
 
-    // Filas de toppings para este producto
+    // Filas compactas de toppings (32px - 36px de alto en una sola línea limpia)
     const toppingsRows = toppingsList.map(top => {
       return `
-        <div class="py-3 first:pt-1 last:pb-1 flex items-center justify-between gap-3">
-          <!-- Topping badge y estado de descuento -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              ${getToppingBadgeHtml(top.topping)}
-              ${top.descPaq > 0 ? `
-                <span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/30 whitespace-nowrap shadow-sm flex items-center gap-1" title="Paquetes restados por no retiro de cliente">
-                  <span>📉</span> -${top.descPaq} pq (-${top.descUn} un)
-                </span>
-              ` : ''}
-            </div>
+        <div class="modal-topping-row">
+          <!-- Izquierda: Badge de color propio del topping -->
+          <div class="flex items-center gap-1.5 min-w-0">
+            ${getToppingBadgeHtml(top.topping)}
             ${top.descPaq > 0 ? `
-              <span class="text-[11px] text-slate-400 block mt-1 font-medium">
-                Pedido original: <strong class="text-slate-300">${top.paquetesOriginal} pq</strong> (${top.unidadesOriginal} un)
+              <span class="px-1.5 py-0.2 rounded text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/30 whitespace-nowrap flex items-center gap-0.5" title="Paquetes restados por no retiro">
+                <span>📉</span> -${top.descPaq}pq
               </span>
             ` : ''}
           </div>
 
-          <!-- Métricas y Controles de Ajuste (- / + / ↺) -->
-          <div class="text-right whitespace-nowrap flex flex-col items-end shrink-0">
-            <div class="flex items-baseline justify-end gap-1">
-              <span class="text-2xl font-black tv-display-num ${top.descPaq > 0 ? 'text-amber-300' : 'text-white'}">${top.netUnidades}</span>
-              <span class="text-xs font-bold text-amber-400 tracking-wider">UN</span>
-            </div>
-            <span class="text-[11px] text-slate-400 font-mono block -mt-1 font-semibold">
-              <strong class="text-slate-200">${top.netPaquetes} pq</strong>
-              ${top.descPaq > 0 ? `<span class="line-through text-slate-500 text-[10px] ml-1">(${top.paquetesOriginal} pq)</span>` : ''}
-            </span>
+          <!-- Centro-Derecha: Cantidad exacta en negrita -->
+          <div class="flex items-baseline gap-1 font-mono text-right whitespace-nowrap">
+            <span class="text-sm font-black ${top.descPaq > 0 ? 'text-amber-300' : 'text-white'}">${top.netUnidades} <span class="text-[10px] font-bold text-amber-400">un</span></span>
+            <span class="text-xs text-slate-400 font-semibold">(${top.netPaquetes} pq)</span>
+          </div>
 
-            <!-- Control interactivo de restar/sumar paquetes -->
-            <div class="flex items-center gap-1 mt-1.5 bg-slate-950/70 p-1 rounded-xl border border-slate-800/80 shadow-sm">
+          <!-- Extremo Derecho: Controles compactos de ajuste rápido height 24px -->
+          <div class="flex items-center gap-0.5 bg-slate-900/90 p-0.5 rounded-lg border border-slate-700/80 shadow-sm shrink-0">
+            <button type="button" 
+              class="btn-pq-minus w-5 h-5 rounded bg-slate-800 hover:bg-rose-900/40 text-slate-300 hover:text-rose-300 flex items-center justify-center font-black text-xs transition-all disabled:opacity-25 cursor-pointer active:scale-95" 
+              data-key="${escapeHtml(top.discountKey)}" 
+              title="Restar 1 paquete de producción"
+              ${top.netPaquetes <= 0 ? 'disabled' : ''}>
+              −
+            </button>
+
+            <input type="number" 
+              min="0" 
+              max="${top.paquetesOriginal}" 
+              value="${top.descPaq}" 
+              class="input-pq-discount w-7 text-center text-[11px] font-mono font-bold bg-slate-950 border border-slate-800 rounded py-0 text-slate-200 focus:outline-none focus:border-rose-500 ${top.descPaq > 0 ? 'text-rose-400 font-black' : ''}" 
+              data-key="${escapeHtml(top.discountKey)}" 
+              data-max="${top.paquetesOriginal}" 
+              title="Paquetes a descontar">
+
+            <button type="button" 
+              class="btn-pq-plus w-5 h-5 rounded bg-slate-800 hover:bg-emerald-900/40 text-slate-300 hover:text-emerald-300 flex items-center justify-center font-black text-xs transition-all disabled:opacity-25 cursor-pointer active:scale-95" 
+              data-key="${escapeHtml(top.discountKey)}" 
+              title="Sumar 1 paquete (devolver al original)"
+              ${top.descPaq <= 0 ? 'disabled' : ''}>
+              +
+            </button>
+
+            ${top.descPaq > 0 ? `
               <button type="button" 
-                class="btn-pq-minus w-6 h-6 rounded-lg bg-slate-800 hover:bg-rose-900/40 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 flex items-center justify-center font-black text-xs transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed active:scale-95" 
+                class="btn-pq-reset w-5 h-5 rounded text-[10px] font-bold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 flex items-center justify-center cursor-pointer transition-all active:scale-95" 
                 data-key="${escapeHtml(top.discountKey)}" 
-                title="Restar 1 paquete de producción (cliente no retiró)"
-                ${top.netPaquetes <= 0 ? 'disabled' : ''}>
-                −
+                title="Restablecer original (${top.paquetesOriginal} pq)">
+                ↺
               </button>
-
-              <input type="number" 
-                min="0" 
-                max="${top.paquetesOriginal}" 
-                value="${top.descPaq}" 
-                class="input-pq-discount w-10 text-center text-xs font-mono font-bold bg-slate-900 border border-slate-700/80 rounded-lg py-0.5 text-slate-200 focus:outline-none focus:border-rose-500 ${top.descPaq > 0 ? 'text-rose-400 font-black border-rose-500/40 bg-rose-500/10' : ''}" 
-                data-key="${escapeHtml(top.discountKey)}" 
-                data-max="${top.paquetesOriginal}" 
-                title="Paquetes a descontar de la producción">
-
-              <button type="button" 
-                class="btn-pq-plus w-6 h-6 rounded-lg bg-slate-800 hover:bg-emerald-900/40 text-slate-300 hover:text-emerald-300 border border-slate-700 hover:border-emerald-500/40 flex items-center justify-center font-black text-xs transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed active:scale-95" 
-                data-key="${escapeHtml(top.discountKey)}" 
-                title="Sumar 1 paquete (devolver hacia el pedido original)"
-                ${top.descPaq <= 0 ? 'disabled' : ''}>
-                +
-              </button>
-
-              ${top.descPaq > 0 ? `
-                <button type="button" 
-                  class="btn-pq-reset ml-0.5 px-1.5 py-0.5 rounded-lg text-[10px] font-bold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 transition-all cursor-pointer active:scale-95" 
-                  data-key="${escapeHtml(top.discountKey)}" 
-                  title="Restablecer paquetes originales">
-                  ↺
-                </button>
-              ` : ''}
-            </div>
+            ` : ''}
           </div>
         </div>
       `;
     }).join('');
 
     return `
-      <div class="bg-slate-900/90 rounded-3xl p-5 border-2 border-slate-800 shadow-xl flex flex-col justify-between hover:border-amber-500/40 transition-all">
+      <div class="modal-product-card">
         <div>
-          <!-- Cabecera de la Tarjeta del Producto -->
-          <div class="pb-3 border-b border-slate-800">
-            <div class="flex items-start justify-between gap-2">
-              <div class="flex-1 min-w-0">
-                <h4 class="text-base font-black text-white tracking-tight leading-snug">${escapeHtml(prod.producto)}</h4>
-                <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                  <span class="px-2 py-0.5 rounded-md bg-slate-800 text-amber-300 font-mono font-black text-xs border border-slate-700 shadow-sm">
-                    ${prod.peso}g
-                  </span>
-                  <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${cfg.badgeClass}">
-                    ${cfg.titulo}
-                  </span>
-                </div>
-              </div>
+          <!-- Cabecera de tarjeta en una sola línea compacta (Req 2.B) -->
+          <div class="flex items-center justify-between pb-2 mb-1.5 border-b border-slate-800/80 gap-2">
+            <!-- Izquierda: Nombre + Gramaje + Molde -->
+            <div class="flex items-center gap-1.5 min-w-0 flex-wrap">
+              <h4 class="text-sm font-black text-white tracking-tight truncate max-w-[160px]" title="${escapeHtml(prod.producto)}">${escapeHtml(prod.producto)}</h4>
+              <span class="px-1.5 py-0.2 rounded bg-slate-800 text-amber-300 font-mono font-black text-[11px] border border-slate-700 whitespace-nowrap shadow-sm">${prod.peso}g</span>
+              <span class="px-1.5 py-0.2 rounded text-[10px] font-black uppercase tracking-wider border ${cfg.badgeClass} whitespace-nowrap">${cfg.titulo}</span>
+            </div>
 
-              <!-- Total Neto del Producto -->
-              <div class="text-right shrink-0 bg-slate-950/80 px-3 py-1.5 rounded-2xl border border-slate-800/80 shadow-inner">
-                <div class="flex items-baseline justify-end gap-1">
-                  <span class="text-2xl font-black text-white tv-display-num">${prod.totalNetUnidades}</span>
-                  <span class="text-xs font-bold text-amber-400">UN</span>
-                </div>
-                <span class="text-[11px] text-slate-400 font-mono font-bold block -mt-1">${prod.totalNetPaquetes} pq</span>
-              </div>
+            <!-- Derecha: Pastilla de total de alto contraste (#1e3a8a con texto blanco) -->
+            <div class="card-total-pill px-2.5 py-1 rounded-xl flex items-baseline gap-1 font-mono shrink-0 shadow-sm">
+              <span class="text-sm font-black text-white">${prod.totalNetUnidades} <span class="text-[10px] font-bold text-blue-200">un</span></span>
+              <span class="text-[10px] text-blue-300 font-bold">/</span>
+              <span class="text-xs font-bold text-blue-100">${prod.totalNetPaquetes} pq</span>
             </div>
           </div>
 
-          <!-- Lista de Toppings para este Producto -->
-          <div class="mt-1 divide-y divide-slate-800/50">
+          <!-- Lista de Toppings densa y compacta -->
+          <div class="space-y-1.5">
             ${toppingsRows}
           </div>
-        </div>
-
-        <!-- Pie de Tarjeta -->
-        <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
-          <span>${toppingsList.length} ${toppingsList.length === 1 ? 'topping' : 'toppings'} configurados</span>
-          <span class="font-mono font-medium">${prod.totalNetUnidades} un netas</span>
         </div>
       </div>
     `;

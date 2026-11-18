@@ -695,50 +695,58 @@
   <!-- MODAL: CONSOLIDADO POR PRODUCTOS Y TOPPINGS (100vw x 100vh)      -->
   <!-- ============================================================== -->
   <div id="modal-toppings-consolidado" class="fixed inset-0 z-50 w-screen h-screen bg-slate-950/95 backdrop-blur-md flex flex-col hidden overflow-hidden">
-    <!-- Header del Modal -->
-    <div class="px-5 py-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 gap-4 flex-wrap">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center text-xl font-bold shadow-inner">
+    <!-- Header del Modal Compacto (48px - 56px de alto) (Req 2.A) -->
+    <div class="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 gap-3 flex-wrap min-h-[50px]">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center justify-center text-lg font-bold shadow-inner">
           🥯
         </div>
         <div>
-          <h2 class="text-xl font-black text-white tracking-tight flex items-center gap-2.5 flex-wrap">
+          <h2 class="text-sm sm:text-base font-black text-white tracking-tight flex items-center gap-2 flex-wrap">
             <span>Consolidado por Productos y Toppings</span>
-            <span id="modal-toppings-dough-badge" class="px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            <span id="modal-toppings-dough-badge" class="px-2 py-0.2 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
               Masa Brioche
             </span>
           </h2>
-          <p id="modal-toppings-metrics-text" class="text-xs text-slate-400 mt-0.5 font-mono">
-            Total en producción: <strong class="text-amber-300 font-bold">0 un</strong> • <strong class="text-slate-200 font-bold">0 pq</strong>
+          <p id="modal-toppings-metrics-text" class="text-[11px] text-slate-300 font-mono">
+            Total en producción: <strong class="text-amber-300 font-bold">0 un</strong> • <strong class="text-slate-100 font-bold">0 pq</strong>
           </p>
         </div>
       </div>
 
-      <div class="flex items-center gap-2.5">
+      <!-- Filtro Rápido por Categoría (Req 2.A) -->
+      <div id="modal-category-filters" class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-inner">
+        <button type="button" class="btn-modal-cat px-3 py-1 rounded-lg text-xs font-black transition-all bg-amber-500 text-slate-950 shadow-sm" data-cat="ALL">Todos</button>
+        <button type="button" class="btn-modal-cat px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white" data-cat="HAMBURGUESA">Hamburguesas</button>
+        <button type="button" class="btn-modal-cat px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white" data-cat="ENROLLADOS">Perros / Delis</button>
+        <button type="button" class="btn-modal-cat px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white" data-cat="PANES">Panes</button>
+      </div>
+
+      <div class="flex items-center gap-2">
         <!-- Restablecer ajustes en el modal -->
-        <button id="btn-modal-reset-discounts" type="button" title="Restablecer todos los paquetes descontados por no retiro" class="hidden items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-white border border-rose-500/30 transition-all cursor-pointer shadow-sm active:scale-95">
-          <span>↺ Restablecer Descuentos</span>
+        <button id="btn-modal-reset-discounts" type="button" title="Restablecer todos los paquetes descontados por no retiro" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-white border border-rose-500/30 transition-all cursor-pointer shadow-sm active:scale-95">
+          <span>↺ Restablecer Ajustes</span>
         </button>
 
         <!-- Botón Cerrar Modal -->
-        <button id="btn-close-toppings-modal" type="button" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 font-bold text-sm transition-all cursor-pointer shadow-sm active:scale-95">
+        <button id="btn-close-toppings-modal" type="button" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95">
           <span>✕ Cerrar</span>
-          <span class="text-xs text-slate-400 font-mono hidden sm:inline">(Esc)</span>
+          <span class="text-[10px] text-slate-400 font-mono hidden sm:inline">(Esc)</span>
         </button>
       </div>
     </div>
 
-    <!-- Contenido Principal: Grid de Alta Densidad por Tipo de Pan/Producto -->
-    <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-950/60">
-      <div id="modal-products-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+    <!-- Contenido Principal: Grid de Alta Densidad por Tipo de Pan/Producto (Req 2.A & 2.B) -->
+    <div class="flex-1 overflow-y-auto p-2.5 sm:p-3 bg-slate-950/70">
+      <div id="modal-products-grid">
         <!-- Inyectado dinámicamente por app.js -->
       </div>
     </div>
 
-    <!-- Footer Informativo -->
-    <div class="px-5 py-3 bg-slate-900 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400 shrink-0">
-      <span>🍞 Vista operativa de armado y colocación de toppings en planta</span>
-      <span class="font-mono text-slate-500">SUGAR • Pedidos &amp; Producción TV</span>
+    <!-- Footer Informativo Compacto -->
+    <div class="px-4 py-1.5 bg-slate-900 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400 shrink-0">
+      <span>🍞 Vista operativa de alta densidad para mesa de armado y colocación de toppings en planta</span>
+      <span class="font-mono text-slate-500">SUGAR • PLANTA</span>
     </div>
   </div>
 
