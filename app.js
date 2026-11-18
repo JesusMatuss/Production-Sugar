@@ -959,7 +959,7 @@ function setupEventListeners() {
           b.className = "btn-modal-cat px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white";
         }
       });
-      renderModalConsolidadoProductos(state.currentProductosConsolidados, state.currentTotalPanes, state.currentTotalPaquetes);
+      renderModalConsolidadoProductos(state.currentToppingsConsolidados, state.currentTotalPanes, state.currentTotalPaquetes);
     });
   });
 
@@ -2128,8 +2128,8 @@ function renderProduccion() {
     doughBadgeEl.textContent = state.activeDough === 'brioche' ? '🟡 Masa Brioche' : (state.activeDough === 'papa' ? '🥔 Pan de Papa' : '🍬 Pan Dulce');
   }
 
-  // 3. Consolidar por Topping y Presentación
-  const consolidado = {};
+  // 3. Consolidar agrupando primariamente por TOPPING (Req 2)
+  const toppingsConsolidados = {};
 
   prodOrders.forEach(o => {
     const topping = (o.topping || 'Sin Topping').trim();
@@ -2142,48 +2142,45 @@ function renderProduccion() {
     const tipoMolde = getTipoMolde(o);
     const subtipo = getSubtipoRuedas(o);
     const discountKey = `${state.activeDough}:::${topping}:::${tipoMolde}:::${prod}:::${peso}`;
-    const itemKey = `${prod}___${pres}___${peso}`;
+    const itemKey = `${prod}___${peso}___${tipoMolde}___${pres}`;
 
-    if (!consolidado[topping]) {
-      consolidado[topping] = {
+    if (!toppingsConsolidados[topping]) {
+      toppingsConsolidados[topping] = {
         topping: topping,
-        totalPaquetes: 0,
-        totalUnidades: 0,
-        subgrupos: {
-          CON_MOLDE: {},
-          SIN_MOLDE: {},
-          ENROLLADOS: {},
-          GENERAL: {}
-        }
+        totalNetPaquetes: 0,
+        totalNetUnidades: 0,
+        items: {}
       };
     }
 
-    if (!consolidado[topping].subgrupos[tipoMolde]) {
-      consolidado[topping].subgrupos[tipoMolde] = {};
-    }
-
-    if (!consolidado[topping].subgrupos[tipoMolde][itemKey]) {
-      consolidado[topping].subgrupos[tipoMolde][itemKey] = {
+    const topGroup = toppingsConsolidados[topping];
+    if (!topGroup.items[itemKey]) {
+      topGroup.items[itemKey] = {
+        key: itemKey,
         producto: prod,
         presentacion: pres,
         peso: peso,
+        tipoMolde: tipoMolde,
+        subtipo: subtipo,
+        discountKey: discountKey,
+        uPorPaq: uPorPaq,
         paquetesOriginal: 0,
         unidadesOriginal: 0,
-        uPorPaq: uPorPaq,
-        subtipo: subtipo,
-        tipoMolde: tipoMolde,
-        discountKey: discountKey,
+        descPaq: 0,
+        descUn: 0,
+        netPaquetes: 0,
+        netUnidades: 0,
         tipos: new Set()
       };
     }
 
-    consolidado[topping].subgrupos[tipoMolde][itemKey].paquetesOriginal += paq;
-    consolidado[topping].subgrupos[tipoMolde][itemKey].unidadesOriginal += un;
+    topGroup.items[itemKey].paquetesOriginal += paq;
+    topGroup.items[itemKey].unidadesOriginal += un;
 
     if (normalizarTexto(o.producto).includes('trenzad')) {
-      consolidado[topping].subgrupos[tipoMolde][itemKey].tipos.add('Trenzada');
+      topGroup.items[itemKey].tipos.add('Trenzada');
     } else {
-      consolidado[topping].subgrupos[tipoMolde][itemKey].tipos.add('Enrollado');
+      topGroup.items[itemKey].tipos.add('Enrollado');
     }
   });
 
@@ -2196,66 +2193,56 @@ function renderProduccion() {
   const ruedasHamburguesas = {};
   const ruedasEnrollados = {};
 
-  Object.keys(consolidado).forEach(topKey => {
-    const group = consolidado[topKey];
-    group.totalPaquetes = 0;
-    group.totalUnidades = 0;
+  Object.values(toppingsConsolidados).forEach(topGroup => {
+    topGroup.totalNetPaquetes = 0;
+    topGroup.totalNetUnidades = 0;
 
-    Object.keys(group.subgrupos).forEach(subKey => {
-      const subObj = group.subgrupos[subKey];
-      Object.keys(subObj).forEach(iKey => {
-        const it = subObj[iKey];
+    Object.values(topGroup.items).forEach(it => {
+      // Paquetes descontados por no retiro (guardados en state.productionDiscounts)
+      const rawDiscount = state.productionDiscounts[it.discountKey] || 0;
+      const descPaq = Math.min(it.paquetesOriginal, Math.max(0, rawDiscount));
+      if (descPaq > 0) activeDiscountsCount++;
 
-        // Paquetes descontados por no retiro (guardados en state.productionDiscounts)
-        const rawDiscount = state.productionDiscounts[it.discountKey] || 0;
-        const descPaq = Math.min(it.paquetesOriginal, Math.max(0, rawDiscount));
-        if (descPaq > 0) activeDiscountsCount++;
+      it.descPaq = descPaq;
+      it.descUn = descPaq * it.uPorPaq;
+      it.netPaquetes = Math.max(0, it.paquetesOriginal - descPaq);
+      it.netUnidades = it.netPaquetes * it.uPorPaq;
+      it.netGramos = it.netUnidades * it.peso;
 
-        it.descPaq = descPaq;
-        it.descUn = descPaq * it.uPorPaq;
-        it.netPaquetes = Math.max(0, it.paquetesOriginal - descPaq);
-        it.netUnidades = it.netPaquetes * it.uPorPaq;
-        it.netGramos = it.netUnidades * it.peso;
+      // Subtotales de cada Topping
+      topGroup.totalNetPaquetes += it.netPaquetes;
+      topGroup.totalNetUnidades += it.netUnidades;
 
-        // Propiedades unificadas para el resto del render
-        it.paquetes = it.netPaquetes;
-        it.unidades = it.netUnidades;
+      // Totales generales para Producción TV
+      masaTotalGramos += it.netGramos;
+      totalPanesUnidades += it.netUnidades;
+      totalPaquetes += it.netPaquetes;
 
-        // Subtotales de cada Topping
-        group.totalPaquetes += it.netPaquetes;
-        group.totalUnidades += it.netUnidades;
-
-        // Totales generales para Producción TV
-        masaTotalGramos += it.netGramos;
-        totalPanesUnidades += it.netUnidades;
-        totalPaquetes += it.netPaquetes;
-
-        // Agrupar al Bloque de Ruedas basado en unidades NETAS
-        if (it.netUnidades > 0) {
-          if (it.subtipo === 'hamburguesa') {
-            const ruedaKey = `${it.peso}g_${it.tipoMolde}`;
-            if (!ruedasHamburguesas[ruedaKey]) {
-              ruedasHamburguesas[ruedaKey] = {
-                peso: it.peso,
-                tipoMolde: it.tipoMolde,
-                unidadesTotales: 0
-              };
-            }
-            ruedasHamburguesas[ruedaKey].unidadesTotales += it.netUnidades;
-          } else if (it.subtipo === 'enrollado') {
-            const ruedaKey = `${it.peso}g`;
-            if (!ruedasEnrollados[ruedaKey]) {
-              ruedasEnrollados[ruedaKey] = {
-                peso: it.peso,
-                unidadesTotales: 0,
-                tipos: new Set()
-              };
-            }
-            ruedasEnrollados[ruedaKey].unidadesTotales += it.netUnidades;
-            it.tipos.forEach(t => ruedasEnrollados[ruedaKey].tipos.add(t));
+      // Agrupar al Bloque de Ruedas basado en unidades NETAS
+      if (it.netUnidades > 0) {
+        if (it.subtipo === 'hamburguesa') {
+          const ruedaKey = `${it.peso}g_${it.tipoMolde}`;
+          if (!ruedasHamburguesas[ruedaKey]) {
+            ruedasHamburguesas[ruedaKey] = {
+              peso: it.peso,
+              tipoMolde: it.tipoMolde,
+              unidadesTotales: 0
+            };
           }
+          ruedasHamburguesas[ruedaKey].unidadesTotales += it.netUnidades;
+        } else if (it.subtipo === 'enrollado') {
+          const ruedaKey = `${it.peso}g`;
+          if (!ruedasEnrollados[ruedaKey]) {
+            ruedasEnrollados[ruedaKey] = {
+              peso: it.peso,
+              unidadesTotales: 0,
+              tipos: new Set()
+            };
+          }
+          ruedasEnrollados[ruedaKey].unidadesTotales += it.netUnidades;
+          it.tipos.forEach(t => ruedasEnrollados[ruedaKey].tipos.add(t));
         }
-      });
+      }
     });
   });
 
@@ -2296,108 +2283,41 @@ function renderProduccion() {
     }
   }
 
-  // 7. Consolidar agrupando primariamente por Tipo de Producto / Pan (Req 4.1)
-  const productosConsolidados = {};
-  prodOrders.forEach(o => {
-    const prodName = (o.producto || '').trim();
-    const peso = parseFloat(o.peso_gr) || 0;
-    const pres = (o.presentacion || 'Estándar').trim();
-    const tipoMolde = getTipoMolde(o);
-    const subtipo = getSubtipoRuedas(o);
-    const topping = (o.topping || 'Sin Topping').trim();
-    const paqOrig = parseFloat(o.paquetes) || 0;
-    const uPorPaq = getUnidadesPorPaquete(o);
-    const unOrig = paqOrig * uPorPaq;
+  // 7. Actualizar resumen en la barra principal de Producción TV
+  const distinctToppings = Object.values(toppingsConsolidados).filter(t => t.totalNetUnidades > 0 || Object.keys(t.items).length > 0);
+  const totalFormatos = distinctToppings.reduce((acc, t) => acc + Object.keys(t.items).length, 0);
 
-    const prodKey = `${prodName}___${peso}___${tipoMolde}`;
-    const discountKey = `${state.activeDough}:::${topping}:::${tipoMolde}:::${prodName}:::${peso}`;
-
-    if (!productosConsolidados[prodKey]) {
-      productosConsolidados[prodKey] = {
-        key: prodKey,
-        producto: prodName,
-        peso: peso,
-        tipoMolde: tipoMolde,
-        presentacion: pres,
-        subtipo: subtipo,
-        totalNetUnidades: 0,
-        totalNetPaquetes: 0,
-        toppings: {}
-      };
-    }
-
-    const p = productosConsolidados[prodKey];
-    if (!p.toppings[topping]) {
-      p.toppings[topping] = {
-        topping: topping,
-        peso: peso,
-        tipoMolde: tipoMolde,
-        discountKey: discountKey,
-        uPorPaq: uPorPaq,
-        paquetesOriginal: 0,
-        unidadesOriginal: 0,
-        descPaq: 0,
-        descUn: 0,
-        netPaquetes: 0,
-        netUnidades: 0
-      };
-    }
-
-    const topObj = p.toppings[topping];
-    topObj.paquetesOriginal += paqOrig;
-    topObj.unidadesOriginal += unOrig;
-  });
-
-  // Calcular totales netos de cada producto y sus toppings
-  const distinctProducts = Object.values(productosConsolidados);
-  distinctProducts.forEach(prod => {
-    Object.values(prod.toppings).forEach(top => {
-      const rawDiscount = state.productionDiscounts[top.discountKey] || 0;
-      top.descPaq = Math.min(top.paquetesOriginal, Math.max(0, rawDiscount));
-      top.descUn = top.descPaq * top.uPorPaq;
-      top.netPaquetes = Math.max(0, top.paquetesOriginal - top.descPaq);
-      top.netUnidades = top.netPaquetes * top.uPorPaq;
-
-      prod.totalNetPaquetes += top.netPaquetes;
-      prod.totalNetUnidades += top.netUnidades;
-    });
-  });
-
-  // Actualizar resumen en la barra principal de Producción TV (Req 4.1)
   const summaryTextEl = document.getElementById('tv-toppings-summary-text');
   const badgeProdCountEl = document.getElementById('badge-toppings-products-count');
   const badgeItemsCountEl = document.getElementById('badge-toppings-items-count');
   const previewChipsEl = document.getElementById('tv-toppings-preview-chips');
 
   if (summaryTextEl) {
-    if (distinctProducts.length === 0 && allInProd.length > 0) {
+    if (distinctToppings.length === 0 && allInProd.length > 0) {
       summaryTextEl.innerHTML = `<span class="text-amber-400 font-bold">Sin pedidos en ${formulaMeta.nombre}.</span> <span class="text-slate-400">Hay ${allInProd.length} pedidos en otras masas (${countPapa > 0 ? `Pan de Papa: ${countPapa} ` : ''}${countDulce > 0 ? `Pan Dulce: ${countDulce}` : ''}${countBrioche > 0 ? `Brioche: ${countBrioche}` : ''}). Selecciona arriba para verlos.</span>`;
     } else {
-      summaryTextEl.textContent = `${totalPanesUnidades.toLocaleString()} unidades netas • ${totalPaquetes.toLocaleString()} paquetes en producción (${distinctProducts.length} productos)`;
+      summaryTextEl.textContent = `${totalPanesUnidades.toLocaleString()} unidades netas • ${totalPaquetes.toLocaleString()} paquetes en producción (${distinctToppings.length} toppings • ${totalFormatos} formatos)`;
     }
   }
   if (badgeProdCountEl) {
-    badgeProdCountEl.textContent = `${distinctProducts.length} ${distinctProducts.length === 1 ? 'producto' : 'productos'}`;
+    badgeProdCountEl.textContent = `${distinctToppings.length} ${distinctToppings.length === 1 ? 'topping' : 'toppings'}`;
   }
   if (badgeItemsCountEl) {
     badgeItemsCountEl.textContent = `${totalPanesUnidades.toLocaleString()} un`;
   }
 
-  // Vista previa rápida de productos directamente en la barra de planta
+  // Vista previa rápida de toppings directamente en la barra de planta
   if (previewChipsEl) {
-    if (distinctProducts.length > 0) {
+    if (distinctToppings.length > 0) {
       previewChipsEl.classList.remove('hidden');
-      previewChipsEl.innerHTML = distinctProducts.map(prod => {
-        const topList = Object.values(prod.toppings || {});
-        const topSummary = topList.map(t => `${t.topping}: ${t.netUnidades}u`).join(' • ');
+      previewChipsEl.innerHTML = distinctToppings.map(top => {
         return `
           <div class="px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center gap-2 text-xs">
-            <span class="font-bold text-white">${escapeHtml(prod.producto)}</span>
-            <span class="px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 font-mono font-bold text-[11px] border border-slate-700">${prod.peso}g</span>
-            <span class="font-black text-amber-400 font-mono">${prod.totalNetUnidades} un</span>
-            <span class="text-slate-400 font-mono">(${prod.totalNetPaquetes} pq)</span>
+            ${getToppingBadgeHtml(top.topping)}
+            <span class="font-black text-amber-400 font-mono">${top.totalNetUnidades} un</span>
+            <span class="text-slate-400 font-mono">(${top.totalNetPaquetes} pq)</span>
             <span class="text-slate-600 hidden sm:inline">|</span>
-            <span class="text-slate-300 font-medium hidden sm:inline">${escapeHtml(topSummary)}</span>
+            <span class="text-slate-300 font-medium hidden sm:inline">${Object.keys(top.items).length} formatos</span>
           </div>
         `;
       }).join('');
@@ -2407,8 +2327,8 @@ function renderProduccion() {
     }
   }
 
-  // Renderizar el contenido dentro del Modal a Pantalla Completa
-  renderModalConsolidadoProductos(productosConsolidados, totalPanesUnidades, totalPaquetes);
+  // Renderizar el contenido dentro del Modal a Pantalla Completa agrupado por Topping (Req 2)
+  renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidades, totalPaquetes);
 
   // 8. Renderizar Bloque 2: Ruedas (Picadora de 36 unidades con unidades netas)
   renderBloqueRuedas(ruedasHamburguesas, ruedasEnrollados);
@@ -2428,11 +2348,11 @@ function closeToppingsModal() {
 }
 
 // ==========================================
-// RENDERIZAR CONSOLIDADO POR PRODUCTOS EN MODAL (REQ 2 - ALTA DENSIDAD)
+// RENDERIZAR CONSOLIDADO POR TOPPINGS EN MODAL (REQ 2 & REQ 3 - ALTA DENSIDAD)
 // ==========================================
-function renderModalConsolidadoProductos(productosConsolidados, totalPanesUnidades, totalPaquetes) {
-  // Guardar en estado para filtros de categoría reactivos
-  state.currentProductosConsolidados = productosConsolidados || {};
+function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidades, totalPaquetes) {
+  // Guardar en estado para filtros reactivos
+  state.currentToppingsConsolidados = toppingsConsolidados || {};
   state.currentTotalPanes = totalPanesUnidades || 0;
   state.currentTotalPaquetes = totalPaquetes || 0;
 
@@ -2451,99 +2371,158 @@ function renderModalConsolidadoProductos(productosConsolidados, totalPanesUnidad
 
   if (!container) return;
 
-  let productsList = Object.values(productosConsolidados || {});
+  const catFilter = state.modalCategoryFilter || 'ALL';
 
-  // Filtrado rápido por categoría en el modal (Req 2.A)
-  if (state.modalCategoryFilter === 'HAMBURGUESA') {
-    productsList = productsList.filter(p => p.subtipo === 'hamburguesa');
-  } else if (state.modalCategoryFilter === 'ENROLLADOS') {
-    productsList = productsList.filter(p => p.subtipo === 'enrollado' || p.tipoMolde === 'ENROLLADOS');
-  } else if (state.modalCategoryFilter === 'PANES') {
-    productsList = productsList.filter(p => p.tipoMolde === 'GENERAL' || (!['hamburguesa', 'enrollado'].includes(p.subtipo)));
-  }
+  // Filtrar ítems de cada grupo de topping según la categoría seleccionada (Req 2.A)
+  const groupsList = Object.values(toppingsConsolidados || {}).map(group => {
+    let items = Object.values(group.items || {});
+    if (catFilter === 'HAMBURGUESA') {
+      items = items.filter(it => it.subtipo === 'hamburguesa');
+    } else if (catFilter === 'ENROLLADOS') {
+      items = items.filter(it => it.subtipo === 'enrollado' || it.tipoMolde === 'ENROLLADOS');
+    } else if (catFilter === 'PANES') {
+      items = items.filter(it => it.tipoMolde === 'GENERAL' || (!['hamburguesa', 'enrollado'].includes(it.subtipo)));
+    }
 
-  if (productsList.length === 0) {
+    const filteredNetUnidades = items.reduce((acc, it) => acc + (it.netUnidades || 0), 0);
+    const filteredNetPaquetes = items.reduce((acc, it) => acc + (it.netPaquetes || 0), 0);
+
+    return {
+      topping: group.topping,
+      totalNetUnidades: filteredNetUnidades,
+      totalNetPaquetes: filteredNetPaquetes,
+      items: items
+    };
+  }).filter(g => g.items.length > 0);
+
+  if (groupsList.length === 0) {
     container.innerHTML = `
       <div class="col-span-full py-16 text-center text-slate-400 bg-slate-900/60 rounded-3xl border border-slate-800">
-        <p class="text-xl font-bold text-slate-300">No hay productos en producción para esta selección.</p>
-        <p class="text-xs text-slate-400 mt-1">Prueba cambiando la categoría arriba o enviando pedidos desde la sección "Pedidos".</p>
+        <p class="text-xl font-bold text-slate-300">No hay productos ni toppings en producción para esta categoría.</p>
+        <p class="text-xs text-slate-400 mt-1">Prueba seleccionando "Todos" arriba o enviando pedidos desde la sección "Pedidos".</p>
       </div>`;
     return;
   }
 
-  // Agrupación visual y ordenamiento: Hamburguesas Con Molde -> Hamburguesas Sin Molde -> Enrollados/Perros -> Panes
-  function getGroupPriority(prod) {
-    if (prod.tipoMolde === 'CON_MOLDE' && prod.subtipo === 'hamburguesa') return 1;
-    if (prod.tipoMolde === 'SIN_MOLDE' && prod.subtipo === 'hamburguesa') return 2;
-    if (prod.subtipo === 'enrollado' || prod.tipoMolde === 'ENROLLADOS') return 3;
+  // Ordenar bloques de toppings de forma predecible y lógica para planta
+  function getToppingSortPriority(topping) {
+    const norm = normalizarTexto(topping);
+    if (norm.includes('ajon') && norm.includes('sesamo')) return 2;
+    if (norm.includes('ajon') && norm.includes('oreg')) return 3;
+    if (norm.includes('ajonjoli')) return 1;
+    if (norm.includes('oregano') || norm.includes('oreg')) return 4;
+    if (norm.includes('sin topping') || norm.includes('natural')) return 5;
+    if (norm.includes('parmesan') || norm.includes('queso')) return 6;
+    if (norm.includes('amapola') || norm.includes('semilla')) return 7;
+    return 8;
+  }
+
+  groupsList.sort((a, b) => {
+    const prioA = getToppingSortPriority(a.topping);
+    const prioB = getToppingSortPriority(b.topping);
+    if (prioA !== prioB) return prioA - prioB;
+    if (b.totalNetUnidades !== a.totalNetUnidades) return b.totalNetUnidades - a.totalNetUnidades;
+    return String(a.topping || '').localeCompare(String(b.topping || ''));
+  });
+
+  // Prioridad de formato dentro de la tarjeta
+  function getItemPriority(it) {
+    if (it.tipoMolde === 'CON_MOLDE' && it.subtipo === 'hamburguesa') return 1;
+    if (it.tipoMolde === 'SIN_MOLDE' && it.subtipo === 'hamburguesa') return 2;
+    if (it.subtipo === 'enrollado' || it.tipoMolde === 'ENROLLADOS') return 3;
     return 4;
   }
 
-  productsList.sort((a, b) => {
-    const prioA = getGroupPriority(a);
-    const prioB = getGroupPriority(b);
-    if (prioA !== prioB) return prioA - prioB;
-    if (b.peso !== a.peso) return b.peso - a.peso;
-    return String(a.producto || '').localeCompare(String(b.producto || ''));
-  });
+  // Renderizado de tarjetas agrupadas por Topping (Req 2)
+  container.innerHTML = groupsList.map(topGroup => {
+    // Ordenar los ítems del topping dando prioridad PROMINENTE al gramaje (Req 3)
+    topGroup.items.sort((a, b) => {
+      // 1. Gramaje descendente (195g -> 120g -> 110g -> 90g -> 70g -> 50g)
+      if (b.peso !== a.peso) return b.peso - a.peso;
+      // 2. Formato/Molde
+      const pA = getItemPriority(a);
+      const pB = getItemPriority(b);
+      if (pA !== pB) return pA - pB;
+      return String(a.producto || '').localeCompare(String(b.producto || ''));
+    });
 
-  // Renderizado de tarjetas compactas de alta densidad (Req 2.B)
-  container.innerHTML = productsList.map(prod => {
-    const cfg = SUBGRUPOS_CONFIG[prod.tipoMolde] || { titulo: prod.tipoMolde, badgeClass: 'text-slate-300 border-slate-700 bg-slate-800' };
-    const toppingsList = Object.values(prod.toppings || {});
+    const itemsRows = topGroup.items.map(it => {
+      const cfg = SUBGRUPOS_CONFIG[it.tipoMolde] || { titulo: it.tipoMolde, badgeClass: 'text-slate-300 border-slate-700 bg-slate-800' };
 
-    // Filas compactas de toppings (32px - 36px de alto en una sola línea limpia)
-    const toppingsRows = toppingsList.map(top => {
       return `
-        <div class="modal-topping-row">
-          <!-- Izquierda: Badge de color propio del topping -->
-          <div class="flex items-center gap-1.5 min-w-0">
-            ${getToppingBadgeHtml(top.topping)}
-            ${top.descPaq > 0 ? `
-              <span class="px-1.5 py-0.2 rounded text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/30 whitespace-nowrap flex items-center gap-0.5" title="Paquetes restados por no retiro">
-                <span>📉</span> -${top.descPaq}pq
-              </span>
-            ` : ''}
+        <div class="modal-product-item-row flex items-center justify-between gap-2.5 p-2 rounded-xl border transition-all">
+          <!-- 1. GRAMAJE PROMINENTE (Req 3) + NOMBRE & FORMATO SECUNDARIO -->
+          <div class="flex items-center gap-2.5 min-w-0 flex-1">
+            <!-- Gramaje grande y en negrita (text-lg sm:text-xl font-black font-mono) -->
+            <div class="gramaje-badge flex items-center justify-center px-2 py-1 rounded-lg border font-mono font-black text-lg sm:text-xl shrink-0 shadow-inner tracking-tight min-w-[56px] sm:min-w-[62px]">
+              ${it.peso}g
+            </div>
+
+            <!-- Nombre de producto y formato secundario claro -->
+            <div class="flex flex-col min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="item-prod-name text-xs sm:text-sm font-black text-white truncate max-w-[160px] sm:max-w-[200px]" title="${escapeHtml(it.producto)}">
+                  ${escapeHtml(it.producto)}
+                </span>
+                <span class="px-1.5 py-0.2 rounded text-[10px] font-black uppercase tracking-wider border ${cfg.badgeClass} whitespace-nowrap">
+                  ${cfg.titulo}
+                </span>
+                ${it.presentacion && it.presentacion !== 'Estándar' ? `
+                  <span class="text-[10px] text-slate-400 font-mono hidden sm:inline">(${escapeHtml(it.presentacion)})</span>
+                ` : ''}
+              </div>
+
+              <!-- Indicador de descuento si existe -->
+              ${it.descPaq > 0 ? `
+                <div class="mt-0.5">
+                  <span class="px-1.5 py-0.2 rounded text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/30 inline-flex items-center gap-0.5" title="Paquetes restados por no retiro">
+                    <span>📉</span> -${it.descPaq}pq (${it.descUn}un)
+                  </span>
+                </div>
+              ` : ''}
+            </div>
           </div>
 
-          <!-- Centro-Derecha: Cantidad exacta en negrita -->
-          <div class="flex items-baseline gap-1 font-mono text-right whitespace-nowrap">
-            <span class="text-sm font-black ${top.descPaq > 0 ? 'text-amber-300' : 'text-white'}">${top.netUnidades} <span class="text-[10px] font-bold text-amber-400">un</span></span>
-            <span class="text-xs text-slate-400 font-semibold">(${top.netPaquetes} pq)</span>
+          <!-- 2. CANTIDAD EXACTA NETA (UNIDADES Y PAQUETES) -->
+          <div class="flex items-baseline gap-1 font-mono text-right whitespace-nowrap shrink-0">
+            <span class="item-units-text text-base sm:text-lg font-black ${it.descPaq > 0 ? 'text-amber-300' : 'text-white'}">
+              ${it.netUnidades} <span class="text-xs font-bold text-amber-400">un</span>
+            </span>
+            <span class="item-packs-text text-xs text-slate-300 font-semibold">(${it.netPaquetes} pq)</span>
           </div>
 
-          <!-- Extremo Derecho: Controles compactos de ajuste rápido height 24px -->
+          <!-- 3. CONTROLES COMPACTOS DE AJUSTE RÁPIDO (− / input / + / ↺) (Req 1) -->
           <div class="flex items-center gap-0.5 bg-slate-900/90 p-0.5 rounded-lg border border-slate-700/80 shadow-sm shrink-0">
             <button type="button" 
               class="btn-pq-minus w-5 h-5 rounded bg-slate-800 hover:bg-rose-900/40 text-slate-300 hover:text-rose-300 flex items-center justify-center font-black text-xs transition-all disabled:opacity-25 cursor-pointer active:scale-95" 
-              data-key="${escapeHtml(top.discountKey)}" 
+              data-key="${escapeHtml(it.discountKey)}" 
               title="Restar 1 paquete de producción"
-              ${top.netPaquetes <= 0 ? 'disabled' : ''}>
+              ${it.netPaquetes <= 0 ? 'disabled' : ''}>
               −
             </button>
 
             <input type="number" 
               min="0" 
-              max="${top.paquetesOriginal}" 
-              value="${top.descPaq}" 
-              class="input-pq-discount w-7 text-center text-[11px] font-mono font-bold bg-slate-950 border border-slate-800 rounded py-0 text-slate-200 focus:outline-none focus:border-rose-500 ${top.descPaq > 0 ? 'text-rose-400 font-black' : ''}" 
-              data-key="${escapeHtml(top.discountKey)}" 
-              data-max="${top.paquetesOriginal}" 
+              max="${it.paquetesOriginal}" 
+              value="${it.descPaq}" 
+              class="input-pq-discount w-7 text-center text-[11px] font-mono font-bold rounded py-0 focus:outline-none ${it.descPaq > 0 ? 'has-discount' : ''}" 
+              data-key="${escapeHtml(it.discountKey)}" 
+              data-max="${it.paquetesOriginal}" 
               title="Paquetes a descontar">
 
             <button type="button" 
               class="btn-pq-plus w-5 h-5 rounded bg-slate-800 hover:bg-emerald-900/40 text-slate-300 hover:text-emerald-300 flex items-center justify-center font-black text-xs transition-all disabled:opacity-25 cursor-pointer active:scale-95" 
-              data-key="${escapeHtml(top.discountKey)}" 
+              data-key="${escapeHtml(it.discountKey)}" 
               title="Sumar 1 paquete (devolver al original)"
-              ${top.descPaq <= 0 ? 'disabled' : ''}>
+              ${it.descPaq <= 0 ? 'disabled' : ''}>
               +
             </button>
 
-            ${top.descPaq > 0 ? `
+            ${it.descPaq > 0 ? `
               <button type="button" 
                 class="btn-pq-reset w-5 h-5 rounded text-[10px] font-bold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 flex items-center justify-center cursor-pointer transition-all active:scale-95" 
-                data-key="${escapeHtml(top.discountKey)}" 
-                title="Restablecer original (${top.paquetesOriginal} pq)">
+                data-key="${escapeHtml(it.discountKey)}" 
+                title="Restablecer original (${it.paquetesOriginal} pq)">
                 ↺
               </button>
             ` : ''}
@@ -2553,29 +2532,26 @@ function renderModalConsolidadoProductos(productosConsolidados, totalPanesUnidad
     }).join('');
 
     return `
-      <div class="modal-product-card">
-        <div>
-          <!-- Cabecera de tarjeta en una sola línea compacta (Req 2.B) -->
-          <div class="flex items-center justify-between pb-2 mb-1.5 border-b border-slate-800/80 gap-2">
-            <!-- Izquierda: Nombre + Gramaje + Molde -->
-            <div class="flex items-center gap-1.5 min-w-0 flex-wrap">
-              <h4 class="text-sm font-black text-white tracking-tight truncate max-w-[160px]" title="${escapeHtml(prod.producto)}">${escapeHtml(prod.producto)}</h4>
-              <span class="px-1.5 py-0.2 rounded bg-slate-800 text-amber-300 font-mono font-black text-[11px] border border-slate-700 whitespace-nowrap shadow-sm">${prod.peso}g</span>
-              <span class="px-1.5 py-0.2 rounded text-[10px] font-black uppercase tracking-wider border ${cfg.badgeClass} whitespace-nowrap">${cfg.titulo}</span>
-            </div>
-
-            <!-- Derecha: Pastilla de total de alto contraste (#1e3a8a con texto blanco) -->
-            <div class="card-total-pill px-2.5 py-1 rounded-xl flex items-baseline gap-1 font-mono shrink-0 shadow-sm">
-              <span class="text-sm font-black text-white">${prod.totalNetUnidades} <span class="text-[10px] font-bold text-blue-200">un</span></span>
-              <span class="text-[10px] text-blue-300 font-bold">/</span>
-              <span class="text-xs font-bold text-blue-100">${prod.totalNetPaquetes} pq</span>
-            </div>
+      <div class="modal-topping-card">
+        <!-- Encabezado de la Tarjeta del Topping -->
+        <div class="flex items-center justify-between pb-2 mb-1.5 border-b border-slate-800/80 gap-2">
+          <!-- Izquierda: Badge de Topping con su color distintivo -->
+          <div class="flex items-center gap-2 min-w-0">
+            ${getToppingBadgeHtml(topGroup.topping)}
+            <span class="text-xs text-slate-400 font-bold hidden sm:inline">(${topGroup.items.length} ${topGroup.items.length === 1 ? 'formato' : 'formatos'})</span>
           </div>
 
-          <!-- Lista de Toppings densa y compacta -->
-          <div class="space-y-1.5">
-            ${toppingsRows}
+          <!-- Derecha: Pastilla de total de alto contraste con texto blanco puro forzado (Req 1) -->
+          <div class="card-total-pill badge-keep-white px-2.5 py-1 rounded-xl flex items-baseline gap-1 font-mono shrink-0 shadow-sm" style="background-color: #1e3a8a !important; color: #ffffff !important; border: 1.5px solid #3b82f6 !important;">
+            <span class="pill-units text-sm font-black text-white" style="color: #ffffff !important; font-weight: 900 !important;">${topGroup.totalNetUnidades} <span class="pill-units-label text-[10px] font-bold text-blue-200" style="color: #bfdbfe !important;">un</span></span>
+            <span class="pill-divider text-[10px] text-blue-300 font-bold" style="color: #93c5fd !important;">/</span>
+            <span class="pill-packs text-xs font-bold text-blue-100" style="color: #dbeafe !important; font-weight: 800 !important;">${topGroup.totalNetPaquetes} pq</span>
           </div>
+        </div>
+
+        <!-- Lista de Productos/Formatos correspondientes al Topping -->
+        <div class="space-y-1.5">
+          ${itemsRows}
         </div>
       </div>
     `;
