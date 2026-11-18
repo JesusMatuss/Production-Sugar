@@ -501,6 +501,25 @@
       </div>
     </div>
 
+    <!-- Carrusel Horizontal: Pedidos 'LISTO DESPACHO' (Req 1, 2, 3) -->
+    <section id="section-carrusel-despacho" class="mb-8 hidden">
+      <div class="flex items-center justify-between gap-3 mb-3 px-1">
+        <div class="flex items-center gap-2.5">
+          <span class="inline-flex items-center justify-center w-7 h-7 rounded-xl bg-cyan-500/20 text-cyan-300 text-sm border border-cyan-500/30 shadow-sm">🥖</span>
+          <h3 class="text-sm font-black uppercase tracking-wider text-slate-200">Pedidos Listos para Despacho</h3>
+          <span id="badge-count-carrusel" class="px-2.5 py-0.5 rounded-full text-xs font-mono font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">0</span>
+        </div>
+        <span class="text-xs text-slate-400 hidden sm:inline font-medium">Pasa el cursor para pausar • Haz clic para ubicar en lista</span>
+      </div>
+
+      <!-- Contenedor del carrusel horizontal interactivo -->
+      <div id="carrusel-despacho-container" class="carrusel-despacho-wrapper relative overflow-hidden rounded-3xl p-3 bg-slate-900/60 border border-slate-800/80 shadow-xl" title="Pasa el mouse para pausar desplazamiento">
+        <div id="carrusel-despacho-track" class="carrusel-despacho-track flex items-stretch gap-4">
+          <!-- Inyectado dinámicamente -->
+        </div>
+      </div>
+    </section>
+
     <!-- Grid de Tarjetas de Entrega (items-start para layout colapsable independiente) -->
     <div id="entregas-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
       <!-- Inyectado dinámicamente -->

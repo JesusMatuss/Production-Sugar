@@ -388,13 +388,13 @@ function getItemMonto(order) {
 const MOCK_ORDERS = [
   { rowIndex: 1, cliente: "Tabuenoburguer", producto: "Hamburguesa Grande M", presentacion: "Con Molde", peso_gr: 110, topping: "Ajonjolí", paquetes: 4, monto: 17.84, telefono: "+5804129310161", fecha1: "15/11/2026", fecha2: "2026-11-15 10:30", entrega: "Retiro en local", estado: "EN_PRODUCCION" },
   { rowIndex: 2, cliente: "Tabuenoburguer", producto: "Perro Comercial M", presentacion: "Pesado", peso_gr: 60, topping: "Orégano", paquetes: 6, monto: 20.34, telefono: "+5804129310161", fecha1: "15/11/2026", fecha2: "2026-11-15 10:30", entrega: "Retiro en local", estado: "EN_PRODUCCION" },
-  { rowIndex: 3, cliente: "Gino's Food", producto: "Hamburguesa Mediana M", presentacion: "Con Molde", peso_gr: 90, topping: "AJON/SESAMO", paquetes: 5, monto: 22.95, telefono: "+5804141234567", fecha1: "15/11/2026", fecha2: "2026-11-15 10:45", entrega: "Despacho", estado: "EN_PRODUCCION" },
-  { rowIndex: 4, cliente: "Gino's Food", producto: "Deli Mediano", presentacion: "Largo", peso_gr: 110, topping: "Ajonjolí", paquetes: 8, monto: 17.04, telefono: "+5804141234567", fecha1: "15/11/2026", fecha2: "2026-11-15 10:45", entrega: "Despacho", estado: "EN_PRODUCCION" },
+  { rowIndex: 3, cliente: "Gino's Food", producto: "Hamburguesa Mediana M", presentacion: "Con Molde", peso_gr: 90, topping: "AJON/SESAMO", paquetes: 5, monto: 22.95, telefono: "+5804141234567", fecha1: "15/11/2026", fecha2: "2026-11-15 10:45", entrega: "Despacho", estado: "REALIZADO" },
+  { rowIndex: 4, cliente: "Gino's Food", producto: "Deli Mediano", presentacion: "Largo", peso_gr: 110, topping: "Ajonjolí", paquetes: 8, monto: 17.04, telefono: "+5804141234567", fecha1: "15/11/2026", fecha2: "2026-11-15 10:45", entrega: "Despacho", estado: "REALIZADO" },
   { rowIndex: 5, cliente: "Santos Burger", producto: "Hamburguesa pequeña PP", presentacion: "Sin Molde", peso_gr: 75, topping: "Ajonjolí", paquetes: 10, monto: 20.80, telefono: "+5804169998877", fecha1: "15/11/2026", fecha2: "2026-11-15 11:00", entrega: "Retiro", estado: "EN_PRODUCCION" },
   { rowIndex: 6, cliente: "Santos Burger", producto: "Perro Papa Grande", presentacion: "16CM", peso_gr: 70, topping: "Sésamo Negro", paquetes: 4, monto: 28.00, telefono: "+5804169998877", fecha1: "15/11/2026", fecha2: "2026-11-15 11:00", entrega: "Retiro", estado: "EN_PRODUCCION" },
   { rowIndex: 11, cliente: "Santos Burger", producto: "Hamburguesa Mediana MP", presentacion: "Con Molde", peso_gr: 90, topping: "Ajonjolí", paquetes: 5, monto: 19.50, telefono: "+5804169998877", fecha1: "15/11/2026", fecha2: "2026-11-15 11:00", entrega: "Retiro", estado: "EN_PRODUCCION" },
-  { rowIndex: 7, cliente: "Café París", producto: "Pan dulce Coco", presentacion: "Simple", peso_gr: 60, topping: "Coco", paquetes: 12, monto: 17.28, telefono: "+5804245551122", fecha1: "15/11/2026", fecha2: "2026-11-15 11:15", entrega: "Despacho", estado: "EN_PRODUCCION" },
-  { rowIndex: 8, cliente: "Café París", producto: "Pan dulce relleno", presentacion: "Relleno", peso_gr: 60, topping: "Arequipe", paquetes: 8, monto: 11.52, telefono: "+5804245551122", fecha1: "15/11/2026", fecha2: "2026-11-15 11:15", entrega: "Despacho", estado: "EN_PRODUCCION" },
+  { rowIndex: 7, cliente: "Café París", producto: "Pan dulce Coco", presentacion: "Simple", peso_gr: 60, topping: "Coco", paquetes: 12, monto: 17.28, telefono: "+5804245551122", fecha1: "15/11/2026", fecha2: "2026-11-15 11:15", entrega: "Despacho", estado: "REALIZADO" },
+  { rowIndex: 8, cliente: "Café París", producto: "Pan dulce relleno", presentacion: "Relleno", peso_gr: 60, topping: "Arequipe", paquetes: 8, monto: 11.52, telefono: "+5804245551122", fecha1: "15/11/2026", fecha2: "2026-11-15 11:15", entrega: "Despacho", estado: "REALIZADO" },
   { rowIndex: 9, cliente: "Burger House VIP", producto: "Hamburguesa Extra Grande M", presentacion: "Con Molde", peso_gr: 120, topping: "Sésamo Negro", paquetes: 6, monto: 23.16, telefono: "+5804128887766", fecha1: "15/11/2026", fecha2: "2026-11-15 11:30", entrega: "Despacho", estado: "PENDIENTE" },
   { rowIndex: 10, cliente: "Burger House VIP", producto: "Hamburguesa Mediana Trenzada", presentacion: "Con Molde", peso_gr: 90, topping: "Orégano", paquetes: 5, monto: 16.60, telefono: "+5804128887766", fecha1: "15/11/2026", fecha2: "2026-11-15 11:30", entrega: "Despacho", estado: "PENDIENTE" }
 ];
@@ -2938,22 +2938,46 @@ function renderEntregas() {
   eligibleOrders.forEach(o => {
     const rawFecha = o.fecha2 || o.fecha1 || 'SinFecha';
     const key = `${o.cliente}___${rawFecha}`;
-    if (!allGroups[key]) allGroups[key] = [];
-    allGroups[key].push(o);
+    if (!allGroups[key]) {
+      const dateParts = formatFriendlyDateParts(rawFecha);
+      allGroups[key] = {
+        key: key,
+        cliente: o.cliente,
+        fechaRaw: rawFecha,
+        fechaDate: dateParts.date,
+        fechaTime: dateParts.time,
+        telefono: o.telefono,
+        entrega: o.entrega,
+        items: [],
+        totalMonto: 0
+      };
+    }
+    allGroups[key].items.push(o);
+    allGroups[key].totalMonto += getItemMonto(o);
   });
 
   let countEnProd = 0;
   let countRealizados = 0;
   let countEntregados = 0;
-  Object.values(allGroups).forEach(items => {
-    if (items.every(i => i.estado === 'ENTREGADO')) {
+  Object.values(allGroups).forEach(g => {
+    if (g.items.every(i => i.estado === 'ENTREGADO')) {
       countEntregados++;
-    } else if (items.every(i => i.estado === 'REALIZADO' || i.estado === 'ENTREGADO')) {
+    } else if (g.items.every(i => i.estado === 'REALIZADO' || i.estado === 'ENTREGADO')) {
       countRealizados++;
     } else {
       countEnProd++;
     }
   });
+
+  // Extraer grupos listos para despacho (Fabricados pero no entregados aún) para el carrusel
+  const listoDespachoGroups = Object.values(allGroups).filter(g => {
+    const isAllDelivered = g.items.every(i => i.estado === 'ENTREGADO');
+    const isRealizado = g.items.every(i => i.estado === 'REALIZADO' || i.estado === 'ENTREGADO');
+    return isRealizado && !isAllDelivered;
+  });
+
+  // Renderizar Carrusel Horizontal de Pedidos 'LISTO DESPACHO' (Req 1, 2, 3)
+  renderCarruselListoDespacho(listoDespachoGroups);
 
   // Actualizar opciones del selector de estado en Entregas (Req 2.2)
   const optAll = document.querySelector('#filter-status-entregas option[value="ALL"]');
@@ -3347,6 +3371,153 @@ function renderEntregas() {
       }
     });
   });
+}
+
+// ==========================================
+// CARRUSEL HORIZONTAL: PEDIDOS 'LISTO DESPACHO' (REQ 1, 2, 3)
+// ==========================================
+function renderCarruselListoDespacho(groups) {
+  const section = document.getElementById('section-carrusel-despacho');
+  const track = document.getElementById('carrusel-despacho-track');
+  const countBadge = document.getElementById('badge-count-carrusel');
+  const wrapper = document.getElementById('carrusel-despacho-container');
+  if (!section || !track) return;
+
+  if (!groups || groups.length === 0) {
+    section.classList.add('hidden');
+    track.innerHTML = '';
+    return;
+  }
+
+  section.classList.remove('hidden');
+  if (countBadge) {
+    countBadge.textContent = `${groups.length}`;
+  }
+
+  // REQ 1: Cada tarjeta dentro del carrusel debe mostrar ÚNICAMENTE dos bloques:
+  // 1) Nombre del Cliente en grande
+  // 2) Listado de productos que lleva en ese pedido
+  // Elimina cualquier otro dato (como modalidad de entrega o resumen de paquetes).
+  const renderCard = (g, isClone = false) => `
+    <div class="carrusel-card flex-shrink-0 w-72 sm:w-80 bg-slate-900/95 border-2 border-cyan-500/40 hover:border-cyan-400 rounded-2xl p-4 shadow-lg shadow-cyan-500/10 cursor-pointer select-none transition-all hover:scale-[1.02] flex flex-col justify-between" 
+         data-card-key="${encodeURIComponent(g.key)}" 
+         ${isClone ? 'aria-hidden="true"' : ''}
+         title="Clic para ver detalle de ${escapeHtml(g.cliente)}">
+      
+      <!-- Bloque 1: Nombre del Cliente en grande -->
+      <div class="border-b border-cyan-500/30 pb-2 mb-2.5">
+        <h4 class="text-base sm:text-lg font-black text-white tracking-tight truncate" title="${escapeHtml(g.cliente)}">
+          ${escapeHtml(g.cliente)}
+        </h4>
+      </div>
+
+      <!-- Bloque 2: Listado de los productos que lleva en ese pedido -->
+      <div class="space-y-1.5 flex-1 overflow-y-auto max-h-32 pr-1 custom-scrollbar">
+        ${g.items.map(item => `
+          <div class="flex items-center justify-between gap-2 text-xs py-0.5 border-b border-slate-800/40 last:border-0">
+            <span class="font-semibold text-slate-200 truncate">
+              ${escapeHtml(item.producto)}${item.topping && item.topping !== 'Sin Topping' && item.topping !== '-' ? ` <span class="text-amber-300 font-normal">(${escapeHtml(item.topping)})</span>` : ''}
+            </span>
+            <span class="font-mono font-bold text-cyan-300 shrink-0">
+              ${item.paquetes} pq
+            </span>
+          </div>
+        `).join('')}
+      </div>
+
+    </div>`;
+
+  // Animación continua sin saltos: Si hay al menos 2 pedidos duplicamos los elementos para loop infinito
+  let cardsHtml = '';
+  if (groups.length >= 2) {
+    cardsHtml = groups.map(g => renderCard(g, false)).join('') + groups.map(g => renderCard(g, true)).join('');
+    track.classList.add('is-animating');
+    const duration = Math.max(20, groups.length * 8);
+    track.style.setProperty('--carrusel-duration', `${duration}s`);
+  } else {
+    cardsHtml = groups.map(g => renderCard(g, false)).join('');
+    track.classList.remove('is-animating');
+  }
+
+  track.innerHTML = cardsHtml;
+
+  // REQ 2: Hover para pausar desplazamiento automático (JS listener + CSS)
+  if (wrapper && !wrapper.dataset.hoverBound) {
+    wrapper.dataset.hoverBound = 'true';
+    wrapper.addEventListener('mouseenter', () => {
+      const activeTrack = document.getElementById('carrusel-despacho-track');
+      if (activeTrack) activeTrack.style.animationPlayState = 'paused';
+    });
+    wrapper.addEventListener('mouseleave', () => {
+      const activeTrack = document.getElementById('carrusel-despacho-track');
+      if (activeTrack) activeTrack.style.animationPlayState = 'running';
+    });
+  }
+
+  // REQ 3: Al hacer clic en una tarjeta, realizar scroll-into-view hacia la tarjeta detallada
+  track.querySelectorAll('.carrusel-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
+      scrollToEntregaCard(cardKey);
+    });
+  });
+}
+
+// REQ 3: Navegación scroll-into-view con apertura automática de tarjeta y destello visual
+function scrollToEntregaCard(cardKey) {
+  if (!cardKey) return;
+
+  // 1. Si los filtros de estado o búsqueda ocultan la tarjeta, restablecerlos
+  const filterStatus = document.getElementById('filter-status-entregas');
+  const searchInput = document.getElementById('input-search-entregas');
+  let needsReRender = false;
+
+  if (state.filterStatusEntregas && state.filterStatusEntregas !== 'ALL' && state.filterStatusEntregas !== 'REALIZADO') {
+    state.filterStatusEntregas = 'ALL';
+    if (filterStatus) filterStatus.value = 'ALL';
+    needsReRender = true;
+  }
+
+  if (state.searchTermEntregas) {
+    state.searchTermEntregas = '';
+    if (searchInput) searchInput.value = '';
+    needsReRender = true;
+  }
+
+  if (needsReRender) {
+    renderEntregas();
+  }
+
+  // 2. Localizar la tarjeta en el grid principal de entregas
+  const targetCard = document.querySelector(`#entregas-grid .entrega-card[data-card-key="${encodeURIComponent(cardKey)}"]`);
+  if (!targetCard) return;
+
+  // 3. Si estaba colapsada, expandirla para que el usuario vea todos los detalles de inmediato
+  if (!state.expandedEntregasCards) state.expandedEntregasCards = new Set();
+  state.expandedEntregasCards.add(cardKey);
+
+  targetCard.classList.remove('is-collapsed');
+  targetCard.classList.add('is-expanded');
+  const body = targetCard.querySelector('.entrega-card-body');
+  if (body) body.classList.remove('hidden');
+  const btn = targetCard.querySelector('.btn-toggle-entrega-card');
+  if (btn) btn.setAttribute('aria-expanded', 'true');
+  const chevron = targetCard.querySelector('.icon-chevron');
+  if (chevron) {
+    chevron.classList.add('rotate-180', 'text-amber-400');
+    chevron.classList.remove('text-slate-400');
+  }
+
+  // 4. Scroll suave centrado en la pantalla
+  targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // 5. Destello luminoso temporal de alta visibilidad
+  targetCard.classList.remove('carrusel-target-highlight');
+  void targetCard.offsetWidth; // Forzar reflow para reiniciar la animación
+  targetCard.classList.add('carrusel-target-highlight');
+  setTimeout(() => {
+    targetCard.classList.remove('carrusel-target-highlight');
+  }, 2500);
 }
 
 // Actualizar estado de despacho/entrega

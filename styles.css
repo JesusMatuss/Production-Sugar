@@ -1395,3 +1395,128 @@ html:not(.dark) .btn-toggle-entrega-card:hover {
 html:not(.dark) .entrega-card-body {
   border-top-color: #EFE7DA !important;
 }
+
+/* ============================================================== */
+/* CARRUSEL HORIZONTAL: PEDIDOS LISTO DESPACHO (REQ 1, 2, 3)     */
+/* ============================================================== */
+.carrusel-despacho-wrapper {
+  overflow: hidden;
+  position: relative;
+  background-color: rgba(15, 23, 42, 0.65);
+  border-radius: 1.5rem;
+  border: 1px solid rgba(51, 65, 85, 0.7);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.carrusel-despacho-track {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+  width: max-content;
+  will-change: transform;
+}
+
+/* Desplazamiento automático continuo */
+.carrusel-despacho-track.is-animating {
+  animation: carruselMarquee var(--carrusel-duration, 35s) linear infinite;
+}
+
+/* REQ 2: Pausar desplazamiento automático cuando el cursor está encima (Hover) */
+.carrusel-despacho-wrapper:hover .carrusel-despacho-track,
+.carrusel-despacho-track:hover {
+  animation-play-state: paused !important;
+}
+
+@keyframes carruselMarquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    /* Desplaza exactamente la mitad (el grupo de tarjetas duplicadas) */
+    transform: translateX(calc(-50% - 0.5rem));
+  }
+}
+
+/* Tarjeta individual del carrusel (REQ 1: solo Nombre y Listado de productos) */
+.carrusel-card {
+  width: 290px;
+  min-width: 290px;
+  max-width: 290px;
+  background-color: rgba(15, 23, 42, 0.95);
+  border: 2px solid rgba(6, 182, 212, 0.4);
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.08);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.carrusel-card:hover {
+  transform: translateY(-2px) scale(1.02);
+  border-color: #06b6d4;
+  box-shadow: 0 8px 24px rgba(6, 182, 212, 0.25);
+}
+
+/* REQ 3: Destello de destaque visual al navegar con scroll-into-view */
+@keyframes targetHighlightGlow {
+  0% {
+    box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.9), 0 0 30px rgba(6, 182, 212, 0.5);
+    transform: scale(1.02);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(6, 182, 212, 1), 0 0 45px rgba(6, 182, 212, 0.7);
+    transform: scale(1.03);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0), 0 0 0 rgba(6, 182, 212, 0);
+    transform: scale(1);
+  }
+}
+
+.carrusel-target-highlight {
+  animation: targetHighlightGlow 2.4s ease-out !important;
+  border-color: #06b6d4 !important;
+}
+
+/* Modo Claro: Carrusel de Pedidos LISTO DESPACHO */
+html:not(.dark) .carrusel-despacho-wrapper {
+  background-color: #FAF7F2 !important;
+  border-color: #E3D8C6 !important;
+  box-shadow: 0 4px 16px rgba(43, 30, 22, 0.06) !important;
+}
+
+html:not(.dark) .carrusel-card {
+  background-color: #FFFFFF !important;
+  border-color: #38BDF8 !important;
+  box-shadow: 0 2px 10px rgba(14, 165, 233, 0.12) !important;
+}
+
+html:not(.dark) .carrusel-card:hover {
+  border-color: #0284C7 !important;
+  box-shadow: 0 8px 22px rgba(2, 132, 199, 0.2) !important;
+}
+
+html:not(.dark) .carrusel-card h4 {
+  color: #0F172A !important;
+}
+
+html:not(.dark) .carrusel-card .text-slate-200 {
+  color: #1E293B !important;
+}
+
+html:not(.dark) .carrusel-card .text-cyan-300 {
+  color: #0369A1 !important;
+}
+
+html:not(.dark) .carrusel-card .border-slate-800\/40 {
+  border-color: #E2E8F0 !important;
+}
+
+html:not(.dark) .carrusel-target-highlight {
+  border-color: #0284C7 !important;
+}
+
