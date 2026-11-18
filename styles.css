@@ -1520,3 +1520,11 @@ html:not(.dark) .carrusel-target-highlight {
   border-color: #0284C7 !important;
 }
 
+/* Modo Claro: Botón Producción Terminada */
+html:not(.dark) #btn-produccion-terminada {
+  background: linear-gradient(135deg, #0284C7, #2563EB) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25) !important;
+}
+
+

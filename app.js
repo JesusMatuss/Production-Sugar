@@ -396,7 +396,11 @@ const MOCK_ORDERS = [
   { rowIndex: 7, cliente: "Café París", producto: "Pan dulce Coco", presentacion: "Simple", peso_gr: 60, topping: "Coco", paquetes: 12, monto: 17.28, telefono: "+5804245551122", fecha1: "15/11/2026", fecha2: "2026-11-15 11:15", entrega: "Despacho", estado: "REALIZADO" },
   { rowIndex: 8, cliente: "Café París", producto: "Pan dulce relleno", presentacion: "Relleno", peso_gr: 60, topping: "Arequipe", paquetes: 8, monto: 11.52, telefono: "+5804245551122", fecha1: "15/11/2026", fecha2: "2026-11-15 11:15", entrega: "Despacho", estado: "REALIZADO" },
   { rowIndex: 9, cliente: "Burger House VIP", producto: "Hamburguesa Extra Grande M", presentacion: "Con Molde", peso_gr: 120, topping: "Sésamo Negro", paquetes: 6, monto: 23.16, telefono: "+5804128887766", fecha1: "15/11/2026", fecha2: "2026-11-15 11:30", entrega: "Despacho", estado: "PENDIENTE" },
-  { rowIndex: 10, cliente: "Burger House VIP", producto: "Hamburguesa Mediana Trenzada", presentacion: "Con Molde", peso_gr: 90, topping: "Orégano", paquetes: 5, monto: 16.60, telefono: "+5804128887766", fecha1: "15/11/2026", fecha2: "2026-11-15 11:30", entrega: "Despacho", estado: "PENDIENTE" }
+  { rowIndex: 10, cliente: "Burger House VIP", producto: "Hamburguesa Mediana Trenzada", presentacion: "Con Molde", peso_gr: 90, topping: "Orégano", paquetes: 5, monto: 16.60, telefono: "+5804128887766", fecha1: "15/11/2026", fecha2: "2026-11-15 11:30", entrega: "Despacho", estado: "PENDIENTE" },
+  { rowIndex: 12, cliente: "La Esquina HotDog", producto: "Perro Comercial", presentacion: "Pesado", peso_gr: 50, topping: "Sin Topping", paquetes: 3, monto: 12.00, telefono: "+5804121112233", fecha1: "15/11/2026", fecha2: "2026-11-15 11:45", entrega: "Retiro", estado: "EN_PRODUCCION" },
+  { rowIndex: 13, cliente: "Eventos & Fiestas", producto: "Perro Mini", presentacion: "Estándar", peso_gr: 50, topping: "Sin Topping", paquetes: 4, monto: 16.00, telefono: "+5804143334455", fecha1: "15/11/2026", fecha2: "2026-11-15 11:45", entrega: "Retiro", estado: "EN_PRODUCCION" },
+  { rowIndex: 14, cliente: "Monster Dog VIP", producto: "Perro Jumbo", presentacion: "22CM", peso_gr: 80, topping: "Ajonjolí", paquetes: 3, monto: 25.00, telefono: "+5804246667788", fecha1: "15/11/2026", fecha2: "2026-11-15 12:00", entrega: "Despacho", estado: "EN_PRODUCCION" },
+  { rowIndex: 15, cliente: "Sandwich Deli Bar", producto: "Deli", presentacion: "Largo", peso_gr: 80, topping: "Orégano", paquetes: 6, monto: 18.00, telefono: "+5804167778899", fecha1: "15/11/2026", fecha2: "2026-11-15 12:00", entrega: "Despacho", estado: "EN_PRODUCCION" }
 ];
 
 // Determinar si una orden corresponde a la modalidad Delivery
@@ -976,6 +980,12 @@ function setupEventListeners() {
   const btnCopyHornero = document.getElementById('btn-copy-hornero');
   if (btnCopyHornero) {
     btnCopyHornero.addEventListener('click', copyToppingsHornero);
+  }
+
+  // Botón Producción Terminada (Marcar todo lo que está en producción como Realizado)
+  const btnProdTerminada = document.getElementById('btn-produccion-terminada');
+  if (btnProdTerminada) {
+    btnProdTerminada.addEventListener('click', markAllProductionAsRealizado);
   }
 
   // Botón Vaciar Producción (Abre modal de confirmación detallado)
@@ -1890,6 +1900,60 @@ function markAsRealizado(rowIndices, clientName = '') {
   showToastNotification(`🥖 Pedido de "${clientName || 'Cliente'}" marcado como REALIZADO. Retirado de Producción TV.`);
 }
 
+// ACCIÓN: Producción Terminada (Marcar todos los pedidos en Producción como Realizados)
+function markAllProductionAsRealizado() {
+  const prodOrders = state.orders.filter(o => o.estado === 'EN_PRODUCCION');
+  if (prodOrders.length === 0) {
+    showToastNotification('ℹ️ No hay pedidos en producción actualmente.');
+    return;
+  }
+
+  const clientesUnicos = [...new Set(prodOrders.map(o => o.cliente))];
+  const confirmMsg = `¿Deseas marcar la PRODUCCIÓN como TERMINADA?\n\n` +
+    `• ${prodOrders.length} ítems en producción de ${clientesUnicos.length} cliente(s)\n` +
+    `• Todos pasarán de inmediato al estado "REALIZADO" (Listos para Despacho).`;
+
+  if (!confirm(confirmMsg)) return;
+
+  const rowIndices = prodOrders.map(o => o.rowIndex);
+  const localRealizados = getLocalRealizadosIndices();
+  const localDelivered = getLocalDeliveredIndices();
+
+  state.orders.forEach(o => {
+    if (rowIndices.includes(o.rowIndex)) {
+      o.estado = 'REALIZADO';
+      localRealizados.add(o.rowIndex);
+      localDelivered.delete(o.rowIndex);
+      state.selectedOrders.delete(o.rowIndex);
+    }
+  });
+
+  saveLocalRealizadosIndices(localRealizados);
+  saveLocalDeliveredIndices(localDelivered);
+  saveLocalOrders();
+
+  if (state.apiUrl) {
+    showSyncIndicator(true);
+    fetch(state.apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'updateOrderStatus',
+        rowIndices: rowIndices,
+        status: 'REALIZADO'
+      })
+    })
+      .then(() => showSyncIndicator(false))
+      .catch(err => {
+        console.error('Error al sincronizar Producción Terminada en Sheets:', err);
+        showSyncIndicator(false);
+      });
+  }
+
+  renderAllViews();
+  showToastNotification(`🎉 ¡Producción Terminada! ${prodOrders.length} ítems de ${clientesUnicos.length} cliente(s) pasaron a LISTO DESPACHO.`);
+}
+
 // Revertir a Producción (vuelve a figurar en la pantalla de Producción TV)
 function revertToProduccion(rowIndices, clientName = '') {
   if (!rowIndices || rowIndices.length === 0) return;
@@ -2231,10 +2295,67 @@ function renderProduccion() {
           }
           ruedasHamburguesas[ruedaKey].unidadesTotales += it.netUnidades;
         } else if (it.subtipo === 'enrollado') {
-          const ruedaKey = `${it.peso}g`;
+          const normProd = normalizarTexto(`${it.producto || ''} ${it.presentacion || ''}`);
+          let varianteKey = '';
+          let displayLabel = '';
+          let badgeClass = '';
+
+          // 1. Separar perros de 50g de los perros mini de 50g
+          if (it.peso === 50) {
+            if (normProd.includes('mini')) {
+              varianteKey = 'MINI_PERRO';
+              displayLabel = '🌭 Perro Mini';
+              badgeClass = 'bg-pink-500/20 text-pink-300 border-pink-500/40';
+            } else {
+              varianteKey = 'PERRO';
+              displayLabel = '🌭 Perro';
+              badgeClass = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+            }
+          }
+          // 2. Separar jumbo de 80g de los delis de 80g
+          else if (it.peso === 80) {
+            if (normProd.includes('jumbo')) {
+              varianteKey = 'JUMBO';
+              displayLabel = '🌭 Jumbo';
+              badgeClass = 'bg-orange-500/20 text-orange-300 border-orange-500/40';
+            } else if (normProd.includes('deli')) {
+              varianteKey = 'DELI';
+              displayLabel = '🥖 Deli';
+              badgeClass = 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40';
+            } else {
+              varianteKey = 'ENROLLADO';
+              displayLabel = '🌭 Enrollado';
+              badgeClass = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+            }
+          }
+          // Otros pesos de enrollados (preservar distinción clara)
+          else {
+            if (normProd.includes('deli')) {
+              varianteKey = 'DELI';
+              displayLabel = '🥖 Deli';
+              badgeClass = 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40';
+            } else if (normProd.includes('mini') && normProd.includes('perro')) {
+              varianteKey = 'MINI_PERRO';
+              displayLabel = '🌭 Perro Mini';
+              badgeClass = 'bg-pink-500/20 text-pink-300 border-pink-500/40';
+            } else if (normProd.includes('jumbo')) {
+              varianteKey = 'JUMBO';
+              displayLabel = '🌭 Jumbo';
+              badgeClass = 'bg-orange-500/20 text-orange-300 border-orange-500/40';
+            } else if (normProd.includes('perro')) {
+              varianteKey = 'PERRO';
+              displayLabel = '🌭 Perro';
+              badgeClass = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+            }
+          }
+
+          const ruedaKey = varianteKey ? `${it.peso}g_${varianteKey}` : `${it.peso}g`;
           if (!ruedasEnrollados[ruedaKey]) {
             ruedasEnrollados[ruedaKey] = {
               peso: it.peso,
+              varianteKey: varianteKey,
+              displayLabel: displayLabel,
+              badgeClass: badgeClass,
               unidadesTotales: 0,
               tipos: new Set()
             };
@@ -2658,6 +2779,9 @@ function renderBloqueRuedas(ruedasHamburguesas, ruedasEnrollados) {
       if (itemA.peso !== itemB.peso) {
         return itemA.peso - itemB.peso;
       }
+      if (itemA.displayLabel && itemB.displayLabel) {
+        return itemA.displayLabel.localeCompare(itemB.displayLabel);
+      }
       return (itemA.tipoMolde || '').localeCompare(itemB.tipoMolde || '');
     });
 
@@ -2694,6 +2818,12 @@ function renderBloqueRuedas(ruedasHamburguesas, ruedasEnrollados) {
         badgeMolde = `<span class="text-xs uppercase font-black tracking-wider px-2.5 py-0.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">🍞 Sin Molde</span>`;
       }
 
+      // Distintivo de variante específica de enrollados (Perro vs Perro Mini, Jumbo vs Deli)
+      let badgeVariante = '';
+      if (item.displayLabel) {
+        badgeVariante = `<span class="text-xs uppercase font-black tracking-wider px-2.5 py-0.5 rounded-lg border ${item.badgeClass || 'bg-amber-500/20 text-amber-300 border-amber-500/30'}">${item.displayLabel}</span>`;
+      }
+
       // Distintivo si contiene hamburguesas trenzadas en la enrolladora
       let badgeTrenzada = '';
       if (item.tipos && item.tipos.has('Trenzada')) {
@@ -2710,6 +2840,7 @@ function renderBloqueRuedas(ruedasHamburguesas, ruedasEnrollados) {
             <div class="flex items-center gap-2.5 flex-wrap">
               <span class="text-3xl lg:text-4xl font-black text-white tracking-tight">${peso}gr</span>
               ${badgeMolde}
+              ${badgeVariante}
               ${badgeTrenzada}
               ${esRuedaMitad ? `<span class="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">1/2 Rueda (${tamanoRueda} un)</span>` : ''}
             </div>
