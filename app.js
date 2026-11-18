@@ -2473,18 +2473,18 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
 
       return `
         <div class="modal-product-item-row flex items-center justify-between gap-3 p-2.5 rounded-xl border transition-all">
-          <!-- 1. GRAMAJE PROMINENTE (Req 3 - Elemento más llamativo de la tarjeta) -->
-          <div class="flex items-center gap-3 min-w-0 flex-1">
-            <div class="gramaje-badge flex items-center justify-center px-3 py-1.5 rounded-xl border-2 font-mono font-black text-2xl sm:text-3xl shrink-0 shadow-lg tracking-tight min-w-[76px] sm:min-w-[84px] h-12 sm:h-14" style="color: #ffffff !important; font-weight: 900 !important;">
+          <!-- 1. GRAMAJE PROMINENTE (Req 3) + NOMBRE & FORMATO SECUNDARIO -->
+          <div class="flex items-center gap-3 min-w-0 flex-1 pr-2">
+            <div class="gramaje-badge shrink-0">
               ${it.peso}g
             </div>
 
             <!-- Nombre de producto y ÚNICA etiqueta de molde limpia (Req 1) -->
             <div class="flex flex-col min-w-0 justify-center">
-              <span class="item-prod-name text-xs sm:text-sm font-bold text-white truncate max-w-[150px] sm:max-w-[200px]" title="${escapeHtml(it.producto)}">
+              <span class="item-prod-name text-xs sm:text-sm font-bold truncate max-w-[140px] sm:max-w-[190px]" title="${escapeHtml(it.producto)}">
                 ${escapeHtml(cleanProdName || it.producto)}
               </span>
-              <div class="flex items-center gap-1.5 mt-0.5">
+              <div class="flex items-center gap-1.5 mt-1">
                 <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${cfg.badgeClass} whitespace-nowrap shadow-sm">
                   ${cfg.titulo}
                 </span>
@@ -2495,7 +2495,7 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
 
               <!-- Indicador de descuento si existe -->
               ${it.descPaq > 0 ? `
-                <div class="mt-1">
+                <div class="mt-0.5">
                   <span class="px-1.5 py-0.2 rounded text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/30 inline-flex items-center gap-0.5" title="Paquetes restados por no retiro">
                     <span>📉</span> -${it.descPaq}pq (${it.descUn}un)
                   </span>
@@ -2504,49 +2504,52 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
             </div>
           </div>
 
-          <!-- 2. CANTIDAD EXACTA NETA (UNIDADES Y PAQUETES - ALTO CONTRASTE REQ 2) -->
-          <div class="flex items-baseline gap-1.5 font-mono text-right whitespace-nowrap shrink-0">
-            <span class="item-units-text text-base sm:text-xl font-black text-white" style="color: #ffffff !important; font-weight: 900 !important;">
-              ${it.netUnidades} <span class="text-xs font-bold text-white" style="color: #ffffff !important; font-weight: 800 !important;">un</span>
-            </span>
-            <span class="item-packs-text text-xs sm:text-sm font-bold text-white" style="color: #ffffff !important; font-weight: 700 !important;">(${it.netPaquetes} pq)</span>
-          </div>
+          <!-- 2. BLOQUE DERECHO: CANTIDAD NETA (ARRIBA) + CONTROLES (ABAJO) - CERO SUPERPOSICIÓN (Req 2) -->
+          <div class="counter-block-right flex flex-col items-end justify-center gap-1.5 shrink-0 pl-2.5">
+            <!-- Cantidad exacta neta (Unidades y Paquetes) -->
+            <div class="flex items-baseline gap-1 font-mono text-right whitespace-nowrap">
+              <span class="item-units-text text-base sm:text-lg font-black font-mono">
+                ${it.netUnidades} <span class="text-xs font-bold item-units-label">un</span>
+              </span>
+              <span class="item-packs-text text-xs font-bold font-mono">(${it.netPaquetes} pq)</span>
+            </div>
 
-          <!-- 3. CONTROLES COMPACTOS DE AJUSTE RÁPIDO (− / input / + / ↺) -->
-          <div class="flex items-center gap-0.5 bg-slate-900/90 p-0.5 rounded-lg border border-slate-700/80 shadow-sm shrink-0">
-            <button type="button" 
-              class="btn-pq-minus w-5 h-5 rounded bg-slate-800 hover:bg-rose-900/40 text-slate-300 hover:text-rose-300 flex items-center justify-center font-black text-xs transition-all disabled:opacity-25 cursor-pointer active:scale-95" 
-              data-key="${escapeHtml(it.discountKey)}" 
-              title="Restar 1 paquete de producción"
-              ${it.netPaquetes <= 0 ? 'disabled' : ''}>
-              −
-            </button>
-
-            <input type="number" 
-              min="0" 
-              max="${it.paquetesOriginal}" 
-              value="${it.descPaq}" 
-              class="input-pq-discount w-7 text-center text-[11px] font-mono font-bold rounded py-0 focus:outline-none ${it.descPaq > 0 ? 'has-discount' : ''}" 
-              data-key="${escapeHtml(it.discountKey)}" 
-              data-max="${it.paquetesOriginal}" 
-              title="Paquetes a descontar">
-
-            <button type="button" 
-              class="btn-pq-plus w-5 h-5 rounded bg-slate-800 hover:bg-emerald-900/40 text-slate-300 hover:text-emerald-300 flex items-center justify-center font-black text-xs transition-all disabled:opacity-25 cursor-pointer active:scale-95" 
-              data-key="${escapeHtml(it.discountKey)}" 
-              title="Sumar 1 paquete (devolver al original)"
-              ${it.descPaq <= 0 ? 'disabled' : ''}>
-              +
-            </button>
-
-            ${it.descPaq > 0 ? `
+            <!-- Controles compactos de ajuste (− / input / + / ↺) -->
+            <div class="flex items-center gap-0.5 p-0.5 rounded-lg border shadow-sm item-controls-container">
               <button type="button" 
-                class="btn-pq-reset w-5 h-5 rounded text-[10px] font-bold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 flex items-center justify-center cursor-pointer transition-all active:scale-95" 
+                class="btn-pq-minus w-5 h-5 rounded flex items-center justify-center font-black text-xs transition-all disabled:opacity-25 cursor-pointer active:scale-95" 
                 data-key="${escapeHtml(it.discountKey)}" 
-                title="Restablecer original (${it.paquetesOriginal} pq)">
-                ↺
+                title="Restar 1 paquete de producción"
+                ${it.netPaquetes <= 0 ? 'disabled' : ''}>
+                −
               </button>
-            ` : ''}
+
+              <input type="number" 
+                min="0" 
+                max="${it.paquetesOriginal}" 
+                value="${it.descPaq}" 
+                class="input-pq-discount w-7 text-center text-[11px] font-mono font-bold rounded py-0 focus:outline-none ${it.descPaq > 0 ? 'has-discount' : ''}" 
+                data-key="${escapeHtml(it.discountKey)}" 
+                data-max="${it.paquetesOriginal}" 
+                title="Paquetes a descontar">
+
+              <button type="button" 
+                class="btn-pq-plus w-5 h-5 rounded flex items-center justify-center font-black text-xs transition-all disabled:opacity-25 cursor-pointer active:scale-95" 
+                data-key="${escapeHtml(it.discountKey)}" 
+                title="Sumar 1 paquete (devolver al original)"
+                ${it.descPaq <= 0 ? 'disabled' : ''}>
+                +
+              </button>
+
+              ${it.descPaq > 0 ? `
+                <button type="button" 
+                  class="btn-pq-reset w-5 h-5 rounded text-[10px] font-bold border flex items-center justify-center cursor-pointer transition-all active:scale-95" 
+                  data-key="${escapeHtml(it.discountKey)}" 
+                  title="Restablecer original (${it.paquetesOriginal} pq)">
+                  ↺
+                </button>
+              ` : ''}
+            </div>
           </div>
         </div>
       `;
