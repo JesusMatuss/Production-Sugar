@@ -3039,11 +3039,16 @@ function renderEntregas() {
     return;
   }
 
+  if (!state.expandedEntregasCards) {
+    state.expandedEntregasCards = new Set();
+  }
+
   container.innerHTML = groupKeys.map(key => {
     const g = groups[key];
     const isAllDelivered = g.items.every(i => i.estado === 'ENTREGADO');
     const isRealizado = g.items.every(i => i.estado === 'REALIZADO' || i.estado === 'ENTREGADO');
     const isDelivery = g.items.some(i => isDeliveryOrder(i));
+    const isExpanded = state.expandedEntregasCards.has(key);
 
     // Modalidad de entrega limpia
     let entregaBadge = '';
@@ -3101,15 +3106,22 @@ function renderEntregas() {
       statusBadge = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40">📺 EN PRODUCCIÓN</span>`;
     }
 
+    const borderClass = isAllDelivered 
+      ? 'border-emerald-500/40 bg-slate-900/60 shadow-lg shadow-emerald-500/5' 
+      : (isRealizado ? 'border-cyan-500/40 shadow-lg shadow-cyan-500/5' : 'border-slate-800 hover:border-amber-500/40');
+
     return `
-      <div class="bg-slate-900/90 rounded-3xl p-5 border-2 ${isAllDelivered ? 'border-emerald-500/40 bg-slate-900/60 shadow-lg shadow-emerald-500/5' : (isRealizado ? 'border-cyan-500/40 shadow-lg shadow-cyan-500/5' : 'border-slate-800 hover:border-amber-500/40')} shadow-2xl flex flex-col justify-between transition-all">
-        <div>
-          <!-- Cabecera de la tarjeta con Monto Total en $ -->
-          <div class="flex items-start justify-between gap-3 mb-3 pb-3 border-b border-slate-800">
-            <div>
+      <div class="entrega-card bg-slate-900/90 rounded-3xl border-2 ${borderClass} shadow-xl transition-all duration-200 overflow-hidden ${isExpanded ? 'is-expanded' : 'is-collapsed'}" data-card-key="${encodeURIComponent(g.key)}">
+        
+        <!-- Cabecera de la tarjeta: Información esencial siempre visible (Req 1) -->
+        <div class="entrega-card-header p-4 sm:p-5 cursor-pointer select-none transition-colors" data-card-key="${encodeURIComponent(g.key)}">
+          <div class="flex items-start justify-between gap-3 mb-2.5">
+            <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2.5 flex-wrap">
-                <h4 class="text-lg font-black text-white tracking-tight">${escapeHtml(g.cliente)}</h4>
-                <span class="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-sm font-black tracking-tight shadow-sm" title="Monto total del pedido">
+                <h4 class="text-base sm:text-lg font-black text-white tracking-tight truncate max-w-[210px] sm:max-w-[280px]" title="${escapeHtml(g.cliente)}">
+                  ${escapeHtml(g.cliente)}
+                </h4>
+                <span class="px-2.5 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-sm font-black tracking-tight shadow-sm shrink-0" title="Monto total del pedido">
                   $${g.totalMonto.toFixed(2)}
                 </span>
               </div>
@@ -3119,18 +3131,45 @@ function renderEntregas() {
                 <span>🕒 ${g.fechaTime}</span>
               </div>
             </div>
-            ${statusBadge}
+
+            <!-- Estado + Botón Desplegar/Contraer (Req 1) -->
+            <div class="flex items-center gap-2 shrink-0">
+              ${statusBadge}
+              <button type="button" 
+                class="btn-toggle-entrega-card w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95" 
+                aria-expanded="${isExpanded ? 'true' : 'false'}" 
+                title="${isExpanded ? 'Contraer pedido' : 'Ver detalles del pedido'}"
+                data-card-key="${encodeURIComponent(g.key)}">
+                <svg class="w-4 h-4 transition-transform duration-200 icon-chevron ${isExpanded ? 'rotate-180 text-amber-400' : 'text-slate-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </button>
+            </div>
           </div>
 
-          <!-- Contacto y Modalidad -->
-          <div class="flex flex-wrap items-center gap-2 mb-3">
-            ${entregaBadge}
-            ${telHtml}
-          </div>
+          <!-- Fila de Modalidad y WhatsApp + Resumen Rápido -->
+          <div class="flex items-center justify-between gap-2 flex-wrap pt-2.5 border-t border-slate-800/60">
+            <div class="flex items-center gap-2 flex-wrap">
+              ${entregaBadge}
+              ${telHtml}
+            </div>
 
+            <!-- Resumen compacto en estado colapsado -->
+            <div class="text-xs text-slate-400 font-mono font-medium flex items-center gap-1.5 ml-auto">
+              <span>${totalPaq} pq</span>
+              <span class="text-slate-600">•</span>
+              <span>${totalUnidades} un</span>
+              <span class="text-slate-600 hidden sm:inline">•</span>
+              <span class="text-amber-400 font-bold text-toggle-hint text-[11px] hidden sm:inline">${isExpanded ? 'Ocultar detalles ▲' : 'Ver productos ▼'}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detalle Colapsable: Desglose de productos y botones de acción (Req 2) -->
+        <div class="entrega-card-body px-4 sm:px-5 pb-5 pt-1 ${isExpanded ? '' : 'hidden'} border-t border-slate-800/80">
           <!-- Lista de Ítems -->
-          <div class="bg-slate-950/60 rounded-2xl p-3 border border-slate-800/80 mb-3">
-            <div class="text-[11px] uppercase tracking-wider font-bold text-slate-400 pb-1 mb-1 border-b border-slate-800/80 flex justify-between items-center">
+          <div class="bg-slate-950/60 rounded-2xl p-3.5 border border-slate-800/80 mb-3.5 mt-2">
+            <div class="text-[11px] uppercase tracking-wider font-bold text-slate-400 pb-1.5 mb-1.5 border-b border-slate-800/80 flex justify-between items-center">
               <span>Productos (${g.items.length})</span>
               <div class="flex items-center gap-2">
                 <span class="text-slate-200 font-mono font-bold">${totalPaq} pq (${totalUnidades} un)</span>
@@ -3138,64 +3177,125 @@ function renderEntregas() {
                 <span class="text-emerald-400 font-mono font-black">$${g.totalMonto.toFixed(2)}</span>
               </div>
             </div>
-            <div class="divide-y divide-slate-800/40 max-h-48 overflow-y-auto pr-1">
+            <div class="divide-y divide-slate-800/40 max-h-56 overflow-y-auto pr-1">
               ${itemsHtml}
             </div>
           </div>
-        </div>
 
-        <!-- Botones de Acción de Entregas (Flujo Simplificado de 3 Estados - Req 2.2) -->
-        <div class="pt-3 border-t border-slate-800 flex flex-col gap-2">
-          
-          ${isAllDelivered ? `
-            <div class="flex items-center justify-between gap-3 pt-1">
-              <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5 py-1">
-                <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                Despachado / Entregado
-              </span>
-              <button class="btn-entregas-action-revert-entregar py-2 px-3.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-800/90 hover:bg-slate-700 border border-slate-700/80 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Revertir entrega y volver a colocar como fabricado">
-                <span>↩️ Revertir Despacho</span>
-              </button>
-            </div>
-          ` : (isRealizado ? `
-            <div class="flex items-center gap-2">
-              <button class="btn-entregas-action-revert-prod py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer flex items-center justify-center gap-1.5 border border-slate-700" data-card-key="${encodeURIComponent(g.key)}" title="Devolver a la pantalla de Producción TV">
-                <span>↩️ A Producción TV</span>
-              </button>
-              <button class="btn-entregas-action-entregar flex-1 py-2.5 px-4 rounded-xl text-xs font-black text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:brightness-110 shadow-md shadow-emerald-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Marcar como entregado / despachado">
-                <span>📦 Listo para Entregar</span>
-              </button>
-            </div>
-          ` : `
-            <!-- Pedido En Producción: Opciones Operativas (Req 2.2) -->
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center gap-2">
-                <!-- Regla Especial: Retirar de Producción / Devolver a Pendientes -->
-                <button class="btn-entregas-action-revert-pendientes flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-white border border-rose-500/30 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Retirar de Producción TV y devolver a bandeja de Pendientes">
-                  <span>↩️ Devolver a Pendientes</span>
-                </button>
-
-                <!-- Marcar como Fabricado / Listo Despacho -->
-                <button class="btn-entregas-action-realizado flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-cyan-600 hover:bg-cyan-500 text-white transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5 active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Marcar completado en producción (fabricado)">
-                  <span>🥖 Marcar Fabricado</span>
+          <!-- Botones de Acción de Entregas (Req 2) -->
+          <div class="pt-2 border-t border-slate-800 flex flex-col gap-2">
+            ${isAllDelivered ? `
+              <div class="flex items-center justify-between gap-3 pt-1">
+                <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5 py-1">
+                  <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Despachado / Entregado
+                </span>
+                <button class="btn-entregas-action-revert-entregar py-2 px-3.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-800/90 hover:bg-slate-700 border border-slate-700/80 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Revertir entrega y volver a colocar como fabricado">
+                  <span>↩️ Revertir Despacho</span>
                 </button>
               </div>
-
-              <!-- Listo para Entregar directo -->
-              <button class="btn-entregas-action-entregar w-full py-2.5 px-4 rounded-xl text-xs font-black text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:brightness-110 shadow-md shadow-emerald-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Marcar directamente como entregado / despachado">
-                <span>📦 Listo para Entregar</span>
-              </button>
-            </div>
-          `)}
-
+            ` : (isRealizado ? `
+              <div class="flex items-center gap-2">
+                <button class="btn-entregas-action-revert-prod py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer flex items-center justify-center gap-1.5 border border-slate-700" data-card-key="${encodeURIComponent(g.key)}" title="Devolver a la pantalla de Producción TV">
+                  <span>↩️ A Producción TV</span>
+                </button>
+                <button class="btn-entregas-action-entregar flex-1 py-2.5 px-4 rounded-xl text-xs font-black text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:brightness-110 shadow-md shadow-emerald-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Marcar como entregado / despachado">
+                  <span>📦 Listo para Entregar</span>
+                </button>
+              </div>
+            ` : `
+              <div class="flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <button class="btn-entregas-action-revert-pendientes flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-white border border-rose-500/30 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Retirar de Producción TV y devolver a bandeja de Pendientes">
+                    <span>↩️ Devolver a Pendientes</span>
+                  </button>
+                  <button class="btn-entregas-action-realizado flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-cyan-600 hover:bg-cyan-500 text-white transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5 active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Marcar completado en producción (fabricado)">
+                    <span>🥖 Marcar Fabricado</span>
+                  </button>
+                </div>
+                <button class="btn-entregas-action-entregar w-full py-2.5 px-4 rounded-xl text-xs font-black text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:brightness-110 shadow-md shadow-emerald-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Marcar directamente como entregado / despachado">
+                  <span>📦 Listo para Entregar</span>
+                </button>
+              </div>
+            `)}
+          </div>
         </div>
 
       </div>`;
   }).join('');
 
+  // Manejo de acordeón colapsable en Entregas (Req 3)
+  function handleCardToggle(cardKey) {
+    if (!state.expandedEntregasCards) state.expandedEntregasCards = new Set();
+    const cardEl = container.querySelector(`.entrega-card[data-card-key="${encodeURIComponent(cardKey)}"]`);
+    if (!cardEl) return;
+    const bodyEl = cardEl.querySelector('.entrega-card-body');
+    const toggleBtn = cardEl.querySelector('.btn-toggle-entrega-card');
+    const chevron = cardEl.querySelector('.icon-chevron');
+    const hintText = cardEl.querySelector('.text-toggle-hint');
+
+    const willExpand = !state.expandedEntregasCards.has(cardKey);
+    if (willExpand) {
+      state.expandedEntregasCards.add(cardKey);
+      cardEl.classList.add('is-expanded');
+      cardEl.classList.remove('is-collapsed');
+      if (bodyEl) bodyEl.classList.remove('hidden');
+      if (chevron) {
+        chevron.classList.add('rotate-180', 'text-amber-400');
+        chevron.classList.remove('text-slate-400');
+      }
+      if (toggleBtn) {
+        toggleBtn.setAttribute('aria-expanded', 'true');
+        toggleBtn.title = 'Contraer pedido';
+      }
+      if (hintText) hintText.textContent = 'Ocultar detalles ▲';
+    } else {
+      state.expandedEntregasCards.delete(cardKey);
+      cardEl.classList.remove('is-expanded');
+      cardEl.classList.add('is-collapsed');
+      if (bodyEl) bodyEl.classList.add('hidden');
+      if (chevron) {
+        chevron.classList.remove('rotate-180', 'text-amber-400');
+        chevron.classList.add('text-slate-400');
+      }
+      if (toggleBtn) {
+        toggleBtn.setAttribute('aria-expanded', 'false');
+        toggleBtn.title = 'Ver detalles del pedido';
+      }
+      if (hintText) hintText.textContent = 'Ver productos ▼';
+    }
+  }
+
+  // Click en el botón de toggle
+  container.querySelectorAll('.btn-toggle-entrega-card').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
+      handleCardToggle(cardKey);
+    });
+  });
+
+  // Click en la cabecera completa de la tarjeta
+  container.querySelectorAll('.entrega-card-header').forEach(header => {
+    header.addEventListener('click', (e) => {
+      // Ignorar si se hace clic en enlaces (ej. WhatsApp) o botones
+      if (e.target.closest('a') || e.target.closest('button')) return;
+      const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
+      handleCardToggle(cardKey);
+    });
+  });
+
+  // Evitar que el clic en el enlace de WhatsApp propague al toggle
+  container.querySelectorAll('a[href*="wa.me"]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  });
+
   // Event listeners para las acciones en Entregas (Req 2.2)
   container.querySelectorAll('.btn-entregas-action-revert-pendientes').forEach(btn => {
     btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
       if (groups[cardKey]) {
         const rows = groups[cardKey].items.map(i => i.rowIndex);
@@ -3206,6 +3306,7 @@ function renderEntregas() {
 
   container.querySelectorAll('.btn-entregas-action-realizado').forEach(btn => {
     btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
       if (groups[cardKey]) {
         const rows = groups[cardKey].items.map(i => i.rowIndex);
@@ -3216,6 +3317,7 @@ function renderEntregas() {
 
   container.querySelectorAll('.btn-entregas-action-revert-prod').forEach(btn => {
     btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
       if (groups[cardKey]) {
         const rows = groups[cardKey].items.map(i => i.rowIndex);
@@ -3226,6 +3328,7 @@ function renderEntregas() {
 
   container.querySelectorAll('.btn-entregas-action-entregar').forEach(btn => {
     btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
       if (groups[cardKey]) {
         const rows = groups[cardKey].items.map(i => i.rowIndex);
@@ -3236,30 +3339,11 @@ function renderEntregas() {
 
   container.querySelectorAll('.btn-entregas-action-revert-entregar').forEach(btn => {
     btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
       if (groups[cardKey]) {
         const rows = groups[cardKey].items.map(i => i.rowIndex);
         markAsRealizado(rows, groups[cardKey].cliente);
-      }
-    });
-  });
-
-  container.querySelectorAll('.btn-entregas-action-entregar').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
-      if (groups[cardKey]) {
-        const rows = groups[cardKey].items.map(i => i.rowIndex);
-        updateDeliveryStatus(rows, 'ENTREGADO', groups[cardKey].cliente);
-      }
-    });
-  });
-
-  container.querySelectorAll('.btn-entregas-action-revert-entregar').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
-      if (groups[cardKey]) {
-        const rows = groups[cardKey].items.map(i => i.rowIndex);
-        updateDeliveryStatus(rows, 'REALIZADO', groups[cardKey].cliente);
       }
     });
   });
