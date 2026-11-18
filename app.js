@@ -142,11 +142,46 @@ function formatFriendlyDate(dateStr) {
   return parts.time ? `${parts.date} ${parts.time}` : parts.date;
 }
 
-// Separar fecha y hora para diseño limpio de tarjetas
+// Separar fecha y hora para diseño limpio de tarjetas (Soporta Columna I: DD/MM/YYYY o YYYY-MM-DD)
 function formatFriendlyDateParts(dateStr) {
-  if (!dateStr) return { date: 'Sin fecha', time: '' };
+  if (!dateStr || dateStr === 'SinFecha') return { date: 'Sin fecha', time: '' };
+  const str = String(dateStr).trim();
+
+  // 1. Probar formato DD/MM/YYYY con o sin hora (ej: "15/11/2026 10:30:00", "8/11/2026, 23:56:35")
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (dmyMatch) {
+    const day = String(dmyMatch[1]).padStart(2, '0');
+    const month = String(dmyMatch[2]).padStart(2, '0');
+    const year = dmyMatch[3];
+    let time = '';
+    if (dmyMatch[4] && dmyMatch[5]) {
+      time = `${String(dmyMatch[4]).padStart(2, '0')}:${String(dmyMatch[5]).padStart(2, '0')}`;
+    }
+    return {
+      date: `${day}/${month}/${year}`,
+      time: time
+    };
+  }
+
+  // 2. Probar formato ISO YYYY-MM-DD (ej: "2026-11-15 10:30:00" o "2026-11-15T10:30:00")
+  const ymdMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:[T\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (ymdMatch) {
+    const year = ymdMatch[1];
+    const month = String(ymdMatch[2]).padStart(2, '0');
+    const day = String(ymdMatch[3]).padStart(2, '0');
+    let time = '';
+    if (ymdMatch[4] && ymdMatch[5]) {
+      time = `${String(ymdMatch[4]).padStart(2, '0')}:${String(ymdMatch[5]).padStart(2, '0')}`;
+    }
+    return {
+      date: `${day}/${month}/${year}`,
+      time: time
+    };
+  }
+
+  // 3. Fallback a new Date() estándar
   try {
-    const d = new Date(dateStr);
+    const d = new Date(str);
     if (!isNaN(d.getTime())) {
       const day = String(d.getDate()).padStart(2, '0');
       const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -159,8 +194,37 @@ function formatFriendlyDateParts(dateStr) {
       };
     }
   } catch (e) {}
-  const clean = String(dateStr).split('GMT')[0].trim();
+
+  // 4. Si viene con hora separada por coma o espacio
+  const clean = str.split('GMT')[0].trim();
+  const spaceParts = clean.split(/[,\s]+/);
+  if (spaceParts.length >= 2 && spaceParts[1].includes(':')) {
+    const timeMatch = spaceParts[1].match(/^(\d{1,2}):(\d{2})/);
+    return {
+      date: spaceParts[0],
+      time: timeMatch ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}` : spaceParts[1]
+    };
+  }
+
   return { date: clean, time: '' };
+}
+
+// Convertir cadena de fecha a timestamp numérico para ordenamiento cronológico
+function parseDateToTimestamp(dateStr) {
+  if (!dateStr || dateStr === 'SinFecha') return 0;
+  const str = String(dateStr).trim();
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (dmyMatch) {
+    const day = parseInt(dmyMatch[1], 10);
+    const month = parseInt(dmyMatch[2], 10) - 1;
+    const year = parseInt(dmyMatch[3], 10);
+    const hours = dmyMatch[4] ? parseInt(dmyMatch[4], 10) : 0;
+    const mins = dmyMatch[5] ? parseInt(dmyMatch[5], 10) : 0;
+    const secs = dmyMatch[6] ? parseInt(dmyMatch[6], 10) : 0;
+    return new Date(year, month, day, hours, mins, secs).getTime() || 0;
+  }
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
 }
 
 // --- CLASIFICACIÓN DE MASA SEGÚN CATEGORÍA Y PRODUCTO ---
@@ -386,21 +450,21 @@ function getItemMonto(order) {
 
 // --- DATOS DE EJEMPLO REALISTAS (PARA PRUEBA INMEDIATA SIN CONEXIÓN) ---
 const MOCK_ORDERS = [
-  { rowIndex: 1, cliente: "Tabuenoburguer", producto: "Hamburguesa Grande M", presentacion: "Con Molde", peso_gr: 110, topping: "Ajonjolí", paquetes: 4, monto: 17.84, telefono: "+5804129310161", fecha1: "15/11/2026", fecha2: "2026-11-15 10:30", entrega: "Retiro en local", estado: "EN_PRODUCCION" },
-  { rowIndex: 2, cliente: "Tabuenoburguer", producto: "Perro Comercial M", presentacion: "Pesado", peso_gr: 60, topping: "Orégano", paquetes: 6, monto: 20.34, telefono: "+5804129310161", fecha1: "15/11/2026", fecha2: "2026-11-15 10:30", entrega: "Retiro en local", estado: "EN_PRODUCCION" },
-  { rowIndex: 3, cliente: "Gino's Food", producto: "Hamburguesa Mediana M", presentacion: "Con Molde", peso_gr: 90, topping: "AJON/SESAMO", paquetes: 5, monto: 22.95, telefono: "+5804141234567", fecha1: "15/11/2026", fecha2: "2026-11-15 10:45", entrega: "Despacho", estado: "REALIZADO" },
-  { rowIndex: 4, cliente: "Gino's Food", producto: "Deli Mediano", presentacion: "Largo", peso_gr: 110, topping: "Ajonjolí", paquetes: 8, monto: 17.04, telefono: "+5804141234567", fecha1: "15/11/2026", fecha2: "2026-11-15 10:45", entrega: "Despacho", estado: "REALIZADO" },
-  { rowIndex: 5, cliente: "Santos Burger", producto: "Hamburguesa pequeña PP", presentacion: "Sin Molde", peso_gr: 75, topping: "Ajonjolí", paquetes: 10, monto: 20.80, telefono: "+5804169998877", fecha1: "15/11/2026", fecha2: "2026-11-15 11:00", entrega: "Retiro", estado: "EN_PRODUCCION" },
-  { rowIndex: 6, cliente: "Santos Burger", producto: "Perro Papa Grande", presentacion: "16CM", peso_gr: 70, topping: "Sésamo Negro", paquetes: 4, monto: 28.00, telefono: "+5804169998877", fecha1: "15/11/2026", fecha2: "2026-11-15 11:00", entrega: "Retiro", estado: "EN_PRODUCCION" },
-  { rowIndex: 11, cliente: "Santos Burger", producto: "Hamburguesa Mediana MP", presentacion: "Con Molde", peso_gr: 90, topping: "Ajonjolí", paquetes: 5, monto: 19.50, telefono: "+5804169998877", fecha1: "15/11/2026", fecha2: "2026-11-15 11:00", entrega: "Retiro", estado: "EN_PRODUCCION" },
-  { rowIndex: 7, cliente: "Café París", producto: "Pan dulce Coco", presentacion: "Simple", peso_gr: 60, topping: "Coco", paquetes: 12, monto: 17.28, telefono: "+5804245551122", fecha1: "15/11/2026", fecha2: "2026-11-15 11:15", entrega: "Despacho", estado: "REALIZADO" },
-  { rowIndex: 8, cliente: "Café París", producto: "Pan dulce relleno", presentacion: "Relleno", peso_gr: 60, topping: "Arequipe", paquetes: 8, monto: 11.52, telefono: "+5804245551122", fecha1: "15/11/2026", fecha2: "2026-11-15 11:15", entrega: "Despacho", estado: "REALIZADO" },
-  { rowIndex: 9, cliente: "Burger House VIP", producto: "Hamburguesa Extra Grande M", presentacion: "Con Molde", peso_gr: 120, topping: "Sésamo Negro", paquetes: 6, monto: 23.16, telefono: "+5804128887766", fecha1: "15/11/2026", fecha2: "2026-11-15 11:30", entrega: "Despacho", estado: "PENDIENTE" },
-  { rowIndex: 10, cliente: "Burger House VIP", producto: "Hamburguesa Mediana Trenzada", presentacion: "Con Molde", peso_gr: 90, topping: "Orégano", paquetes: 5, monto: 16.60, telefono: "+5804128887766", fecha1: "15/11/2026", fecha2: "2026-11-15 11:30", entrega: "Despacho", estado: "PENDIENTE" },
-  { rowIndex: 12, cliente: "La Esquina HotDog", producto: "Perro Comercial", presentacion: "Pesado", peso_gr: 50, topping: "Sin Topping", paquetes: 3, monto: 12.00, telefono: "+5804121112233", fecha1: "15/11/2026", fecha2: "2026-11-15 11:45", entrega: "Retiro", estado: "PENDIENTE" },
-  { rowIndex: 13, cliente: "Eventos & Fiestas", producto: "Perro Mini", presentacion: "Estándar", peso_gr: 50, topping: "Sin Topping", paquetes: 4, monto: 16.00, telefono: "+5804143334455", fecha1: "15/11/2026", fecha2: "2026-11-15 11:45", entrega: "Retiro", estado: "PENDIENTE" },
-  { rowIndex: 14, cliente: "Monster Dog VIP", producto: "Perro Jumbo", presentacion: "22CM", peso_gr: 80, topping: "Ajonjolí", paquetes: 3, monto: 25.00, telefono: "+5804246667788", fecha1: "15/11/2026", fecha2: "2026-11-15 12:00", entrega: "Despacho", estado: "EN_PRODUCCION" },
-  { rowIndex: 15, cliente: "Sandwich Deli Bar", producto: "Deli", presentacion: "Largo", peso_gr: 80, topping: "Orégano", paquetes: 6, monto: 18.00, telefono: "+5804167778899", fecha1: "15/11/2026", fecha2: "2026-11-15 12:00", entrega: "Despacho", estado: "EN_PRODUCCION" }
+  { rowIndex: 1, cliente: "Tabuenoburguer", producto: "Hamburguesa Grande M", presentacion: "Con Molde", peso_gr: 110, topping: "Ajonjolí", paquetes: 4, monto: 17.84, telefono: "+5804129310161", fecha1: "15/11/2026 10:30", fecha2: "2026-11-15 10:30", entrega: "Retiro en local", estado: "EN_PRODUCCION" },
+  { rowIndex: 2, cliente: "Tabuenoburguer", producto: "Perro Comercial M", presentacion: "Pesado", peso_gr: 60, topping: "Orégano", paquetes: 6, monto: 20.34, telefono: "+5804129310161", fecha1: "15/11/2026 10:30", fecha2: "2026-11-15 10:30", entrega: "Retiro en local", estado: "EN_PRODUCCION" },
+  { rowIndex: 3, cliente: "Gino's Food", producto: "Hamburguesa Mediana M", presentacion: "Con Molde", peso_gr: 90, topping: "AJON/SESAMO", paquetes: 5, monto: 22.95, telefono: "+5804141234567", fecha1: "15/11/2026 10:45", fecha2: "2026-11-15 10:45", entrega: "Despacho", estado: "REALIZADO" },
+  { rowIndex: 4, cliente: "Gino's Food", producto: "Deli Mediano", presentacion: "Largo", peso_gr: 110, topping: "Ajonjolí", paquetes: 8, monto: 17.04, telefono: "+5804141234567", fecha1: "15/11/2026 10:45", fecha2: "2026-11-15 10:45", entrega: "Despacho", estado: "REALIZADO" },
+  { rowIndex: 5, cliente: "Santos Burger", producto: "Hamburguesa pequeña PP", presentacion: "Sin Molde", peso_gr: 75, topping: "Ajonjolí", paquetes: 10, monto: 20.80, telefono: "+5804169998877", fecha1: "15/11/2026 11:00", fecha2: "2026-11-15 11:00", entrega: "Retiro", estado: "EN_PRODUCCION" },
+  { rowIndex: 6, cliente: "Santos Burger", producto: "Perro Papa Grande", presentacion: "16CM", peso_gr: 70, topping: "Sésamo Negro", paquetes: 4, monto: 28.00, telefono: "+5804169998877", fecha1: "15/11/2026 11:00", fecha2: "2026-11-15 11:00", entrega: "Retiro", estado: "EN_PRODUCCION" },
+  { rowIndex: 11, cliente: "Santos Burger", producto: "Hamburguesa Mediana MP", presentacion: "Con Molde", peso_gr: 90, topping: "Ajonjolí", paquetes: 5, monto: 19.50, telefono: "+5804169998877", fecha1: "15/11/2026 11:00", fecha2: "2026-11-15 11:00", entrega: "Retiro", estado: "EN_PRODUCCION" },
+  { rowIndex: 7, cliente: "Café París", producto: "Pan dulce Coco", presentacion: "Simple", peso_gr: 60, topping: "Coco", paquetes: 12, monto: 17.28, telefono: "+5804245551122", fecha1: "15/11/2026 11:15", fecha2: "2026-11-15 11:15", entrega: "Despacho", estado: "REALIZADO" },
+  { rowIndex: 8, cliente: "Café París", producto: "Pan dulce relleno", presentacion: "Relleno", peso_gr: 60, topping: "Arequipe", paquetes: 8, monto: 11.52, telefono: "+5804245551122", fecha1: "15/11/2026 11:15", fecha2: "2026-11-15 11:15", entrega: "Despacho", estado: "REALIZADO" },
+  { rowIndex: 9, cliente: "Burger House VIP", producto: "Hamburguesa Extra Grande M", presentacion: "Con Molde", peso_gr: 120, topping: "Sésamo Negro", paquetes: 6, monto: 23.16, telefono: "+5804128887766", fecha1: "15/11/2026 11:30", fecha2: "2026-11-15 11:30", entrega: "Despacho", estado: "PENDIENTE" },
+  { rowIndex: 10, cliente: "Burger House VIP", producto: "Hamburguesa Mediana Trenzada", presentacion: "Con Molde", peso_gr: 90, topping: "Orégano", paquetes: 5, monto: 16.60, telefono: "+5804128887766", fecha1: "15/11/2026 11:30", fecha2: "2026-11-15 11:30", entrega: "Despacho", estado: "PENDIENTE" },
+  { rowIndex: 12, cliente: "La Esquina HotDog", producto: "Perro Comercial", presentacion: "Pesado", peso_gr: 50, topping: "Sin Topping", paquetes: 3, monto: 12.00, telefono: "+5804121112233", fecha1: "15/11/2026 11:45", fecha2: "2026-11-15 11:45", entrega: "Retiro", estado: "PENDIENTE" },
+  { rowIndex: 13, cliente: "Eventos & Fiestas", producto: "Perro Mini", presentacion: "Estándar", peso_gr: 50, topping: "Sin Topping", paquetes: 4, monto: 16.00, telefono: "+5804143334455", fecha1: "15/11/2026 11:45", fecha2: "2026-11-15 11:45", entrega: "Retiro", estado: "PENDIENTE" },
+  { rowIndex: 14, cliente: "Monster Dog VIP", producto: "Perro Jumbo", presentacion: "22CM", peso_gr: 80, topping: "Ajonjolí", paquetes: 3, monto: 25.00, telefono: "+5804246667788", fecha1: "15/11/2026 12:00", fecha2: "2026-11-15 12:00", entrega: "Despacho", estado: "EN_PRODUCCION" },
+  { rowIndex: 15, cliente: "Sandwich Deli Bar", producto: "Deli", presentacion: "Largo", peso_gr: 80, topping: "Orégano", paquetes: 6, monto: 18.00, telefono: "+5804167778899", fecha1: "15/11/2026 12:00", fecha2: "2026-11-15 12:00", entrega: "Despacho", estado: "EN_PRODUCCION" }
 ];
 
 // Determinar si una orden corresponde a la modalidad Delivery
@@ -687,7 +751,7 @@ async function loadOrders() {
 
           // Si Google Sheets trae columnas de repartidor/costo/liquidado
           if (o.repartidor || o.costo_delivery || typeof o.liquidado !== 'undefined') {
-            const rawFecha = o.fecha2 || o.fecha1 || 'SinFecha';
+            const rawFecha = o.fecha1 || o.fecha2 || 'SinFecha';
             const cardKey = `${o.cliente}___${rawFecha}`;
             const isLiq = typeof o.liquidado === 'boolean' 
               ? o.liquidado 
@@ -1270,7 +1334,7 @@ function renderPedidos() {
   let totalMontoFiltered = 0;
 
   filtered.forEach(o => {
-    const rawFecha = o.fecha2 || o.fecha1 || 'SinFecha';
+    const rawFecha = o.fecha1 || o.fecha2 || 'SinFecha';
     const key = `${o.cliente}___${rawFecha}`;
     const itemMonto = getItemMonto(o);
     totalMontoFiltered += itemMonto;
@@ -1299,8 +1363,8 @@ function renderPedidos() {
 
   // Orden cronológico (ASC = más antiguos primero, DESC = más recientes primero)
   groupKeys.sort((a, b) => {
-    const dateA = new Date(groups[a].fechaRaw).getTime() || 0;
-    const dateB = new Date(groups[b].fechaRaw).getTime() || 0;
+    const dateA = parseDateToTimestamp(groups[a].fechaRaw);
+    const dateB = parseDateToTimestamp(groups[b].fechaRaw);
     return state.filterSort === 'DESC' ? dateB - dateA : dateA - dateB;
   });
 
@@ -1844,7 +1908,7 @@ function updateNavCounters() {
     const deliveryOrders = state.orders.filter(o => isDeliveryOrder(o));
     const deliveryGroups = new Set();
     deliveryOrders.forEach(o => {
-      const rawFecha = o.fecha2 || o.fecha1 || 'SinFecha';
+      const rawFecha = o.fecha1 || o.fecha2 || 'SinFecha';
       deliveryGroups.add(`${o.cliente}___${rawFecha}`);
     });
     const count = deliveryGroups.size;
@@ -3080,7 +3144,7 @@ function renderEntregas() {
   // Contabilizar pedidos por grupo completo (Cliente + Fecha) para los badges y selectores
   const allGroups = {};
   eligibleOrders.forEach(o => {
-    const rawFecha = o.fecha2 || o.fecha1 || 'SinFecha';
+    const rawFecha = o.fecha1 || o.fecha2 || 'SinFecha';
     const key = `${o.cliente}___${rawFecha}`;
     if (!allGroups[key]) {
       const dateParts = formatFriendlyDateParts(rawFecha);
@@ -3165,7 +3229,7 @@ function renderEntregas() {
   // Agrupar los pedidos filtrados por Cliente y Marca de tiempo
   const groups = {};
   filtered.forEach(o => {
-    const rawFecha = o.fecha2 || o.fecha1 || 'SinFecha';
+    const rawFecha = o.fecha1 || o.fecha2 || 'SinFecha';
     const key = `${o.cliente}___${rawFecha}`;
     const itemMonto = getItemMonto(o);
     if (!groups[key]) {
@@ -3727,7 +3791,7 @@ function renderDeliverys() {
   // 2. Agrupar por Cliente + Fecha (un grupo por pedido)
   const groups = {};
   deliveryOrders.forEach(o => {
-    const rawFecha = o.fecha2 || o.fecha1 || 'SinFecha';
+    const rawFecha = o.fecha1 || o.fecha2 || 'SinFecha';
     const key = `${o.cliente}___${rawFecha}`;
     const itemMonto = getItemMonto(o);
     const paq = parseFloat(o.paquetes) || 0;
@@ -4397,7 +4461,7 @@ function liquidarJornadaRepartidor(driverName, marcarLiquidado = true) {
 
   state.orders.forEach(o => {
     if (isDeliveryOrder(o)) {
-      const rawFecha = o.fecha2 || o.fecha1 || 'SinFecha';
+      const rawFecha = o.fecha1 || o.fecha2 || 'SinFecha';
       const cardKey = `${o.cliente}___${rawFecha}`;
       const m = meta[o.rowIndex] || meta[cardKey] || {};
       const currentDriver = m.repartidor || o.repartidor || '';
