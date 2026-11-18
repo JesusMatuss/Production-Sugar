@@ -397,8 +397,8 @@ const MOCK_ORDERS = [
   { rowIndex: 8, cliente: "Café París", producto: "Pan dulce relleno", presentacion: "Relleno", peso_gr: 60, topping: "Arequipe", paquetes: 8, monto: 11.52, telefono: "+5804245551122", fecha1: "15/11/2026", fecha2: "2026-11-15 11:15", entrega: "Despacho", estado: "REALIZADO" },
   { rowIndex: 9, cliente: "Burger House VIP", producto: "Hamburguesa Extra Grande M", presentacion: "Con Molde", peso_gr: 120, topping: "Sésamo Negro", paquetes: 6, monto: 23.16, telefono: "+5804128887766", fecha1: "15/11/2026", fecha2: "2026-11-15 11:30", entrega: "Despacho", estado: "PENDIENTE" },
   { rowIndex: 10, cliente: "Burger House VIP", producto: "Hamburguesa Mediana Trenzada", presentacion: "Con Molde", peso_gr: 90, topping: "Orégano", paquetes: 5, monto: 16.60, telefono: "+5804128887766", fecha1: "15/11/2026", fecha2: "2026-11-15 11:30", entrega: "Despacho", estado: "PENDIENTE" },
-  { rowIndex: 12, cliente: "La Esquina HotDog", producto: "Perro Comercial", presentacion: "Pesado", peso_gr: 50, topping: "Sin Topping", paquetes: 3, monto: 12.00, telefono: "+5804121112233", fecha1: "15/11/2026", fecha2: "2026-11-15 11:45", entrega: "Retiro", estado: "EN_PRODUCCION" },
-  { rowIndex: 13, cliente: "Eventos & Fiestas", producto: "Perro Mini", presentacion: "Estándar", peso_gr: 50, topping: "Sin Topping", paquetes: 4, monto: 16.00, telefono: "+5804143334455", fecha1: "15/11/2026", fecha2: "2026-11-15 11:45", entrega: "Retiro", estado: "EN_PRODUCCION" },
+  { rowIndex: 12, cliente: "La Esquina HotDog", producto: "Perro Comercial", presentacion: "Pesado", peso_gr: 50, topping: "Sin Topping", paquetes: 3, monto: 12.00, telefono: "+5804121112233", fecha1: "15/11/2026", fecha2: "2026-11-15 11:45", entrega: "Retiro", estado: "PENDIENTE" },
+  { rowIndex: 13, cliente: "Eventos & Fiestas", producto: "Perro Mini", presentacion: "Estándar", peso_gr: 50, topping: "Sin Topping", paquetes: 4, monto: 16.00, telefono: "+5804143334455", fecha1: "15/11/2026", fecha2: "2026-11-15 11:45", entrega: "Retiro", estado: "PENDIENTE" },
   { rowIndex: 14, cliente: "Monster Dog VIP", producto: "Perro Jumbo", presentacion: "22CM", peso_gr: 80, topping: "Ajonjolí", paquetes: 3, monto: 25.00, telefono: "+5804246667788", fecha1: "15/11/2026", fecha2: "2026-11-15 12:00", entrega: "Despacho", estado: "EN_PRODUCCION" },
   { rowIndex: 15, cliente: "Sandwich Deli Bar", producto: "Deli", presentacion: "Largo", peso_gr: 80, topping: "Orégano", paquetes: 6, monto: 18.00, telefono: "+5804167778899", fecha1: "15/11/2026", fecha2: "2026-11-15 12:00", entrega: "Despacho", estado: "EN_PRODUCCION" }
 ];
@@ -1228,8 +1228,8 @@ function renderPedidos() {
 
   // Actualizar estadísticas superiores
   const totalOrders = state.orders.length;
-  const pendingOrders = state.orders.filter(o => o.estado === 'PENDIENTE').length;
-  const prodOrders = state.orders.filter(o => o.estado === 'EN_PRODUCCION').length;
+  const pendingOrders = state.orders.filter(o => normalizarEstado(o.estado) === 'PENDIENTE').length;
+  const prodOrders = state.orders.filter(o => normalizarEstado(o.estado) === 'EN_PRODUCCION').length;
 
   const statTotal = document.getElementById('stat-total-orders');
   const statPending = document.getElementById('stat-pending-orders');
@@ -1251,16 +1251,15 @@ function renderPedidos() {
     if (!matchSearch) return false;
 
     // 2. Filtro por Estado (Únicamente Pendientes y En producción - Req 2.1)
-    if (state.filterStatus === 'PENDIENTE' && o.estado !== 'PENDIENTE') return false;
-    if (state.filterStatus === 'EN_PRODUCCION' && o.estado !== 'EN_PRODUCCION') return false;
+    const st = normalizarEstado(o.estado);
+    if (state.filterStatus === 'PENDIENTE' && st !== 'PENDIENTE') return false;
+    if (state.filterStatus === 'EN_PRODUCCION' && st !== 'EN_PRODUCCION') return false;
 
     // 3. Filtro por Modalidad
     if (state.filterDelivery === 'RETIRO') {
-      const ent = (o.entrega || '').toLowerCase();
-      if (!ent.includes('retiro') && !ent.includes('no')) return false;
+      if (isDeliveryOrder(o)) return false;
     } else if (state.filterDelivery === 'DELIVERY') {
-      const ent = (o.entrega || '').toLowerCase();
-      if (ent.includes('retiro') || (!ent.includes('si') && !ent.includes('sí') && !ent.includes('delivery'))) return false;
+      if (!isDeliveryOrder(o)) return false;
     }
 
     return true;
@@ -1318,21 +1317,29 @@ function renderPedidos() {
 
   container.innerHTML = groupKeys.map(key => {
     const g = groups[key];
-    const allInProd = g.items.every(i => i.estado === 'EN_PRODUCCION');
-    const someInProd = g.items.some(i => i.estado === 'EN_PRODUCCION');
-    const hasPendingItems = g.items.some(i => i.estado === 'PENDIENTE');
+    const allDelivered = g.items.every(i => normalizarEstado(i.estado) === 'ENTREGADO');
+    const allRealizado = g.items.every(i => normalizarEstado(i.estado) === 'REALIZADO' || normalizarEstado(i.estado) === 'ENTREGADO');
+    const allInProd = g.items.every(i => normalizarEstado(i.estado) === 'EN_PRODUCCION');
+    const someInProd = g.items.some(i => normalizarEstado(i.estado) === 'EN_PRODUCCION');
+    const hasPendingItems = g.items.some(i => normalizarEstado(i.estado) === 'PENDIENTE');
 
-    // Estilo de la tarjeta según estado (Exclusivamente Pendientes vs En producción - Req 2.1)
+    // Estilo de la tarjeta según estado real
     let cardBorder = "border-slate-800 hover:border-amber-500/40 bg-slate-900/90";
     let badgeHtml = '';
-    if (allInProd) {
+    if (allDelivered) {
+      cardBorder = "border-emerald-500/40 bg-slate-900/80 shadow-lg shadow-emerald-500/10";
+      badgeHtml = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 whitespace-nowrap">✅ ENTREGADO</span>`;
+    } else if (allRealizado) {
+      cardBorder = "border-cyan-500/40 bg-slate-900/80 shadow-lg shadow-cyan-500/10";
+      badgeHtml = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 whitespace-nowrap">🥖 FABRICADO</span>`;
+    } else if (allInProd) {
       cardBorder = "border-amber-500/50 bg-slate-900/80 shadow-lg shadow-amber-500/10";
       badgeHtml = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap">📺 EN PRODUCCIÓN</span>`;
     } else if (someInProd) {
       cardBorder = "border-amber-500/40 bg-slate-900/90 shadow-lg shadow-amber-500/10";
-      badgeHtml = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap">⏳ EN PRODUCCIÓN</span>`;
+      badgeHtml = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/40 whitespace-nowrap">🔄 PARCIAL</span>`;
     } else {
-      cardBorder = "border-slate-800 hover:border-amber-500/40 bg-slate-900/90";
+      cardBorder = "border-slate-800 hover:border-blue-500/40 bg-slate-900/90";
       badgeHtml = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/40 whitespace-nowrap">⏳ PENDIENTE</span>`;
     }
 
@@ -1359,14 +1366,20 @@ function renderPedidos() {
     }
 
     const rowsHtml = g.items.map(item => {
+      const itemSt = normalizarEstado(item.estado);
       const isChecked = state.selectedOrders.has(item.rowIndex);
-      const isProd = item.estado === 'EN_PRODUCCION';
-      const isSelectable = !isProd;
+      const isProd = itemSt === 'EN_PRODUCCION';
+      const isPending = itemSt === 'PENDIENTE';
+      const isSelectable = isPending;
       const uPorPaq = getUnidadesPorPaquete(item);
       const totalUnits = (item.paquetes || 0) * uPorPaq;
 
       let badgeItem = '';
-      if (isProd) {
+      if (itemSt === 'ENTREGADO') {
+        badgeItem = `<span class="px-2.5 py-1 rounded-xl text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30">✅ Entregado</span>`;
+      } else if (itemSt === 'REALIZADO') {
+        badgeItem = `<span class="px-2.5 py-1 rounded-xl text-xs font-bold text-cyan-400 bg-cyan-950/60 border border-cyan-500/30">🥖 Fabricado</span>`;
+      } else if (isProd) {
         badgeItem = `
           <button class="btn-retire-item inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black text-amber-300 hover:text-white bg-amber-500/15 hover:bg-rose-600 border border-amber-500/30 hover:border-rose-600 transition-all cursor-pointer shadow-sm group" data-row="${item.rowIndex}" title="Clic para retirar este ítem de Producción TV y devolver a Pendientes">
             <span class="group-hover:hidden">📺 En TV</span>
@@ -1518,7 +1531,7 @@ function renderPedidos() {
       const cardKey = decodeURIComponent(e.target.dataset.cardKey);
       if (groups[cardKey]) {
         groups[cardKey].items.forEach(item => {
-          if (item.estado === 'PENDIENTE') {
+          if (normalizarEstado(item.estado) === 'PENDIENTE') {
             state.selectedOrders.add(item.rowIndex);
           }
         });
@@ -1544,7 +1557,7 @@ function renderPedidos() {
       const cardKey = decodeURIComponent(btn.dataset.cardKey);
       if (groups[cardKey]) {
         const prodRowIndices = groups[cardKey].items
-          .filter(i => i.estado === 'EN_PRODUCCION')
+          .filter(i => normalizarEstado(i.estado) === 'EN_PRODUCCION')
           .map(i => i.rowIndex);
         if (prodRowIndices.length > 0) {
           retireFromProduction(prodRowIndices, groups[cardKey].cliente);
@@ -1657,7 +1670,7 @@ function updateSelectedButtonState() {
 }
 
 function toggleSelectAllPending() {
-  const pending = state.orders.filter(o => o.estado === 'PENDIENTE');
+  const pending = state.orders.filter(o => normalizarEstado(o.estado) === 'PENDIENTE');
   if (state.selectedOrders.size === pending.length && pending.length > 0) {
     state.selectedOrders.clear();
   } else {
@@ -1902,7 +1915,7 @@ function markAsRealizado(rowIndices, clientName = '') {
 
 // ACCIÓN: Producción Terminada (Marcar todos los pedidos en Producción como Realizados)
 function markAllProductionAsRealizado() {
-  const prodOrders = state.orders.filter(o => o.estado === 'EN_PRODUCCION');
+  const prodOrders = state.orders.filter(o => normalizarEstado(o.estado) === 'EN_PRODUCCION');
   if (prodOrders.length === 0) {
     showToastNotification('ℹ️ No hay pedidos en producción actualmente.');
     return;
@@ -2081,7 +2094,7 @@ function sendToPickup(rowIndices, clientName = '') {
 
 // Modal de confirmación para Vaciar Producción
 function openClearProductionModal() {
-  const prodOrders = state.orders.filter(o => o.estado === 'EN_PRODUCCION');
+  const prodOrders = state.orders.filter(o => normalizarEstado(o.estado) === 'EN_PRODUCCION');
   if (prodOrders.length === 0) {
     alert("No hay pedidos en producción para vaciar.");
     return;
@@ -2111,7 +2124,7 @@ function closeClearProductionModal() {
 async function executeClearProduction() {
   closeClearProductionModal();
 
-  const prodOrders = state.orders.filter(o => o.estado === 'EN_PRODUCCION');
+  const prodOrders = state.orders.filter(o => normalizarEstado(o.estado) === 'EN_PRODUCCION');
   if (prodOrders.length === 0) return;
 
   const btn = document.getElementById('btn-clear-production');
