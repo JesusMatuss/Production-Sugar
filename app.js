@@ -2366,7 +2366,7 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
   }
 
   if (metricsEl) {
-    metricsEl.innerHTML = `Total en producción: <strong class="text-amber-300 font-bold">${(totalPanesUnidades || 0).toLocaleString()} un</strong> • <strong class="text-slate-100 font-bold">${(totalPaquetes || 0).toLocaleString()} pq</strong>`;
+    metricsEl.innerHTML = `Total en producción: <strong class="text-white font-black" style="color: #ffffff !important; font-weight: 900 !important;">${(totalPanesUnidades || 0).toLocaleString()} un</strong> • <strong class="text-white font-bold" style="color: #ffffff !important; font-weight: 800 !important;">${(totalPaquetes || 0).toLocaleString()} pq</strong>`;
   }
 
   if (!container) return;
@@ -2404,7 +2404,7 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
     return;
   }
 
-  // Ordenar bloques de toppings de forma predecible y lógica para planta
+  // Ordenar bloques de toppings de forma predecible y lógica para planta (Req 4)
   function getToppingSortPriority(topping) {
     const norm = normalizarTexto(topping);
     if (norm.includes('ajon') && norm.includes('sesamo')) return 2;
@@ -2433,7 +2433,7 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
     return 4;
   }
 
-  // Renderizado de tarjetas agrupadas por Topping (Req 2)
+  // Renderizado de tarjetas agrupadas por Topping (Req 4)
   container.innerHTML = groupsList.map(topGroup => {
     // Ordenar los ítems del topping dando prioridad PROMINENTE al gramaje (Req 3)
     topGroup.items.sort((a, b) => {
@@ -2449,32 +2449,53 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
     const itemsRows = topGroup.items.map(it => {
       const cfg = SUBGRUPOS_CONFIG[it.tipoMolde] || { titulo: it.tipoMolde, badgeClass: 'text-slate-300 border-slate-700 bg-slate-800' };
 
+      // 1. ELIMINAR REDUNDANCIAS (Req 1):
+      // Limpiar 'Con Molde' / 'Sin Molde' / 'C/Molde' / 'S/Molde' del nombre para que no se repita con el badge
+      let cleanProdName = String(it.producto || '').trim();
+      cleanProdName = cleanProdName
+        .replace(/\b(?:con\s*molde|c\/molde)\b/gi, '')
+        .replace(/\b(?:sin\s*molde|s\/molde)\b/gi, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+
+      // No mostrar presentación si es redundante con el molde o si es estándar
+      let presExtra = '';
+      if (it.presentacion) {
+        const normP = normalizarTexto(it.presentacion);
+        if (!normP.includes('con molde') && 
+            !normP.includes('sin molde') && 
+            !normP.includes('c/molde') && 
+            !normP.includes('s/molde') && 
+            !normP.includes('estandar')) {
+          presExtra = it.presentacion.trim();
+        }
+      }
+
       return `
-        <div class="modal-product-item-row flex items-center justify-between gap-2.5 p-2 rounded-xl border transition-all">
-          <!-- 1. GRAMAJE PROMINENTE (Req 3) + NOMBRE & FORMATO SECUNDARIO -->
-          <div class="flex items-center gap-2.5 min-w-0 flex-1">
-            <!-- Gramaje grande y en negrita (text-lg sm:text-xl font-black font-mono) -->
-            <div class="gramaje-badge flex items-center justify-center px-2 py-1 rounded-lg border font-mono font-black text-lg sm:text-xl shrink-0 shadow-inner tracking-tight min-w-[56px] sm:min-w-[62px]">
+        <div class="modal-product-item-row flex items-center justify-between gap-3 p-2.5 rounded-xl border transition-all">
+          <!-- 1. GRAMAJE PROMINENTE (Req 3 - Elemento más llamativo de la tarjeta) -->
+          <div class="flex items-center gap-3 min-w-0 flex-1">
+            <div class="gramaje-badge flex items-center justify-center px-3 py-1.5 rounded-xl border-2 font-mono font-black text-2xl sm:text-3xl shrink-0 shadow-lg tracking-tight min-w-[76px] sm:min-w-[84px] h-12 sm:h-14" style="color: #ffffff !important; font-weight: 900 !important;">
               ${it.peso}g
             </div>
 
-            <!-- Nombre de producto y formato secundario claro -->
-            <div class="flex flex-col min-w-0">
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="item-prod-name text-xs sm:text-sm font-black text-white truncate max-w-[160px] sm:max-w-[200px]" title="${escapeHtml(it.producto)}">
-                  ${escapeHtml(it.producto)}
-                </span>
-                <span class="px-1.5 py-0.2 rounded text-[10px] font-black uppercase tracking-wider border ${cfg.badgeClass} whitespace-nowrap">
+            <!-- Nombre de producto y ÚNICA etiqueta de molde limpia (Req 1) -->
+            <div class="flex flex-col min-w-0 justify-center">
+              <span class="item-prod-name text-xs sm:text-sm font-bold text-white truncate max-w-[150px] sm:max-w-[200px]" title="${escapeHtml(it.producto)}">
+                ${escapeHtml(cleanProdName || it.producto)}
+              </span>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${cfg.badgeClass} whitespace-nowrap shadow-sm">
                   ${cfg.titulo}
                 </span>
-                ${it.presentacion && it.presentacion !== 'Estándar' ? `
-                  <span class="text-[10px] text-slate-400 font-mono hidden sm:inline">(${escapeHtml(it.presentacion)})</span>
+                ${presExtra ? `
+                  <span class="text-[10px] text-slate-400 font-mono hidden sm:inline">(${escapeHtml(presExtra)})</span>
                 ` : ''}
               </div>
 
               <!-- Indicador de descuento si existe -->
               ${it.descPaq > 0 ? `
-                <div class="mt-0.5">
+                <div class="mt-1">
                   <span class="px-1.5 py-0.2 rounded text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/30 inline-flex items-center gap-0.5" title="Paquetes restados por no retiro">
                     <span>📉</span> -${it.descPaq}pq (${it.descUn}un)
                   </span>
@@ -2483,15 +2504,15 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
             </div>
           </div>
 
-          <!-- 2. CANTIDAD EXACTA NETA (UNIDADES Y PAQUETES) -->
-          <div class="flex items-baseline gap-1 font-mono text-right whitespace-nowrap shrink-0">
-            <span class="item-units-text text-base sm:text-lg font-black ${it.descPaq > 0 ? 'text-amber-300' : 'text-white'}">
-              ${it.netUnidades} <span class="text-xs font-bold text-amber-400">un</span>
+          <!-- 2. CANTIDAD EXACTA NETA (UNIDADES Y PAQUETES - ALTO CONTRASTE REQ 2) -->
+          <div class="flex items-baseline gap-1.5 font-mono text-right whitespace-nowrap shrink-0">
+            <span class="item-units-text text-base sm:text-xl font-black text-white" style="color: #ffffff !important; font-weight: 900 !important;">
+              ${it.netUnidades} <span class="text-xs font-bold text-white" style="color: #ffffff !important; font-weight: 800 !important;">un</span>
             </span>
-            <span class="item-packs-text text-xs text-slate-300 font-semibold">(${it.netPaquetes} pq)</span>
+            <span class="item-packs-text text-xs sm:text-sm font-bold text-white" style="color: #ffffff !important; font-weight: 700 !important;">(${it.netPaquetes} pq)</span>
           </div>
 
-          <!-- 3. CONTROLES COMPACTOS DE AJUSTE RÁPIDO (− / input / + / ↺) (Req 1) -->
+          <!-- 3. CONTROLES COMPACTOS DE AJUSTE RÁPIDO (− / input / + / ↺) -->
           <div class="flex items-center gap-0.5 bg-slate-900/90 p-0.5 rounded-lg border border-slate-700/80 shadow-sm shrink-0">
             <button type="button" 
               class="btn-pq-minus w-5 h-5 rounded bg-slate-800 hover:bg-rose-900/40 text-slate-300 hover:text-rose-300 flex items-center justify-center font-black text-xs transition-all disabled:opacity-25 cursor-pointer active:scale-95" 
@@ -2534,18 +2555,18 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
     return `
       <div class="modal-topping-card">
         <!-- Encabezado de la Tarjeta del Topping -->
-        <div class="flex items-center justify-between pb-2 mb-1.5 border-b border-slate-800/80 gap-2">
+        <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-800/80 gap-2">
           <!-- Izquierda: Badge de Topping con su color distintivo -->
           <div class="flex items-center gap-2 min-w-0">
             ${getToppingBadgeHtml(topGroup.topping)}
             <span class="text-xs text-slate-400 font-bold hidden sm:inline">(${topGroup.items.length} ${topGroup.items.length === 1 ? 'formato' : 'formatos'})</span>
           </div>
 
-          <!-- Derecha: Pastilla de total de alto contraste con texto blanco puro forzado (Req 1) -->
-          <div class="card-total-pill badge-keep-white px-2.5 py-1 rounded-xl flex items-baseline gap-1 font-mono shrink-0 shadow-sm" style="background-color: #1e3a8a !important; color: #ffffff !important; border: 1.5px solid #3b82f6 !important;">
-            <span class="pill-units text-sm font-black text-white" style="color: #ffffff !important; font-weight: 900 !important;">${topGroup.totalNetUnidades} <span class="pill-units-label text-[10px] font-bold text-blue-200" style="color: #bfdbfe !important;">un</span></span>
-            <span class="pill-divider text-[10px] text-blue-300 font-bold" style="color: #93c5fd !important;">/</span>
-            <span class="pill-packs text-xs font-bold text-blue-100" style="color: #dbeafe !important; font-weight: 800 !important;">${topGroup.totalNetPaquetes} pq</span>
+          <!-- Derecha: Pastilla de total de alto contraste con texto blanco puro forzado (Req 2) -->
+          <div class="card-total-pill badge-keep-white px-3 py-1 rounded-xl flex items-baseline gap-1.5 font-mono shrink-0 shadow-md" style="background-color: #1e3a8a !important; color: #ffffff !important; border: 1.5px solid #3b82f6 !important;">
+            <span class="pill-units text-sm sm:text-base font-black text-white" style="color: #ffffff !important; font-weight: 900 !important;">${topGroup.totalNetUnidades} <span class="pill-units-label text-[11px] font-bold text-white" style="color: #ffffff !important; font-weight: 800 !important;">un</span></span>
+            <span class="pill-divider text-[11px] font-bold text-white" style="color: #ffffff !important;">/</span>
+            <span class="pill-packs text-xs sm:text-sm font-bold text-white" style="color: #ffffff !important; font-weight: 800 !important;">${topGroup.totalNetPaquetes} pq</span>
           </div>
         </div>
 

@@ -963,14 +963,14 @@ body.tv-kiosk-mode main {
 }
 
 /* ============================================================== */
-/* PASTILLA DE TOTAL DE PRODUCTO / TOPPING (ALTO CONTRASTE REQ 1) */
+/* PASTILLA DE TOTAL DE PRODUCTO / TOPPING (ALTO CONTRASTE REQ 2) */
 /* ============================================================== */
 .card-total-pill,
 .card-total-pill *,
 .card-total-pill span,
 .card-total-pill strong {
   color: #FFFFFF !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
 }
 
 .card-total-pill {
@@ -989,30 +989,18 @@ html.dark .card-total-pill span,
 html.dark .card-total-pill strong {
   background-color: #1e3a8a !important;
   color: #FFFFFF !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
 }
 
 .card-total-pill .pill-units,
-.card-total-pill span.pill-units {
-  color: #FFFFFF !important;
-  font-weight: 900 !important;
-}
-
+.card-total-pill span.pill-units,
 .card-total-pill .pill-units-label,
-.card-total-pill span.pill-units-label {
-  color: #BFDBFE !important;
-  font-weight: 700 !important;
-}
-
+.card-total-pill span.pill-units-label,
 .card-total-pill .pill-divider,
-.card-total-pill span.pill-divider {
-  color: #93C5FD !important;
-  font-weight: 700 !important;
-}
-
+.card-total-pill span.pill-divider,
 .card-total-pill .pill-packs,
 .card-total-pill span.pill-packs {
-  color: #DBEAFE !important;
+  color: #FFFFFF !important;
   font-weight: 800 !important;
 }
 
@@ -1140,13 +1128,29 @@ html.dark .text-slate-300,
   border-color: rgba(51, 65, 85, 0.9);
 }
 
-/* Gramaje badge prominente (Req 3 - Alta visibilidad en planta) */
+/* Gramaje badge prominente (Req 3 - Alta visibilidad y jerarquía máxima en planta) */
 .gramaje-badge {
-  background-color: #0F172A !important;
-  color: #FCD34D !important;
-  border: 1.5px solid #334155 !important;
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%) !important;
+  color: #FFFFFF !important;
+  border: 2px solid #F59E0B !important; /* Borde dorado ámbar de alta visibilidad */
+  font-size: 1.65rem !important;
   font-weight: 900 !important;
-  line-height: 1.1;
+  letter-spacing: -0.03em !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.15) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 76px !important;
+  height: 52px !important;
+  border-radius: 12px !important;
+  line-height: 1 !important;
+}
+
+.item-units-text,
+.item-units-text span,
+.item-packs-text {
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
 }
 
 /* Modo Claro en Modales Fullscreen y Tarjetas Compactas */
@@ -1202,10 +1206,12 @@ html:not(.dark) .modal-topping-row:hover {
 }
 
 html:not(.dark) .gramaje-badge {
-  background-color: #F2ECE1 !important;
-  color: #96501B !important;
-  border-color: #D99B52 !important;
+  background: linear-gradient(135deg, #B46528 0%, #96501B 100%) !important;
+  color: #FFFFFF !important;
+  border: 2px solid #78350F !important;
+  font-size: 1.65rem !important;
   font-weight: 900 !important;
+  box-shadow: 0 4px 10px rgba(180, 101, 40, 0.25) !important;
 }
 
 html:not(.dark) .modal-product-item-row .item-prod-name {
