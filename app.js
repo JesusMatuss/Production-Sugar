@@ -86,6 +86,24 @@ Object.keys(FORMULAS_BASE).forEach(key => {
   FORMULAS_BASE[key].masaTotalBase = FORMULAS_BASE[key].ingredientes.reduce((sum, item) => sum + item.base, 0);
 });
 
+// Configuración de subgrupos de productos y molde en planta
+const SUBGRUPOS_CONFIG = {
+  CON_MOLDE: { titulo: 'Con Molde', badgeClass: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' },
+  SIN_MOLDE: { titulo: 'Sin Molde', badgeClass: 'text-indigo-400 border-indigo-500/30 bg-indigo-500/10' },
+  ENROLLADOS: { titulo: 'Enrollados / Perros', badgeClass: 'text-amber-400 border-amber-500/30 bg-amber-500/10' },
+  GENERAL: { titulo: 'General', badgeClass: 'text-slate-300 border-slate-700 bg-slate-800' }
+};
+
+// Normalizar estado para máxima tolerancia (acentos, espacios, minúsculas desde Sheets)
+function normalizarEstado(estado) {
+  if (!estado) return 'PENDIENTE';
+  const norm = String(estado).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s_-]+/g, '_');
+  if (norm.includes('PRODUC')) return 'EN_PRODUCCION';
+  if (norm.includes('REALIZAD') || norm.includes('FABRICAD') || norm.includes('LISTO')) return 'REALIZADO';
+  if (norm.includes('ENTREGAD') || norm.includes('DESPACHAD')) return 'ENTREGADO';
+  return 'PENDIENTE';
+}
+
 // --- FUNCIÓN PURA: CÁLCULO DE RUEDAS (PICADORA DE 36 UNIDADES) ---
 function calcularRuedasDesdeUnidades(totalUnidades, tamanoRueda = 36) {
   const total = Number(totalUnidades) || 0;
@@ -647,7 +665,7 @@ async function loadOrders() {
       const data = await res.json();
       if (data && data.success && Array.isArray(data.orders)) {
         state.orders = data.orders.map(o => {
-          let estado = o.estado;
+          let estado = normalizarEstado(o.estado);
           if (localDelivered.has(o.rowIndex)) {
             estado = 'ENTREGADO';
           } else if (localRealizados.has(o.rowIndex)) {
@@ -699,6 +717,7 @@ async function loadOrders() {
     try {
       state.orders = JSON.parse(saved);
       state.orders.forEach(o => {
+        o.estado = normalizarEstado(o.estado);
         if (localDelivered.has(o.rowIndex)) {
           o.estado = 'ENTREGADO';
         } else if (localRealizados.has(o.rowIndex)) {
@@ -709,10 +728,10 @@ async function loadOrders() {
         }
       });
     } catch (e) {
-      state.orders = MOCK_ORDERS;
+      state.orders = MOCK_ORDERS.map(o => ({ ...o, estado: normalizarEstado(o.estado) }));
     }
   } else {
-    state.orders = MOCK_ORDERS;
+    state.orders = MOCK_ORDERS.map(o => ({ ...o, estado: normalizarEstado(o.estado) }));
     saveLocalOrders();
   }
   showSyncIndicator(false);
@@ -2063,9 +2082,20 @@ async function executeClearProduction() {
 // ==========================================
 function renderProduccion() {
   // 1. Filtrar pedidos que están EN_PRODUCCION y corresponden a la masa activa
-  const prodOrders = state.orders.filter(o => {
-    return o.estado === 'EN_PRODUCCION' && getTipoMasa(o) === state.activeDough;
-  });
+  const allInProd = state.orders.filter(o => normalizarEstado(o.estado) === 'EN_PRODUCCION');
+  const prodOrders = allInProd.filter(o => getTipoMasa(o) === state.activeDough);
+
+  // Actualizar conteos activos en los botones superiores de masa
+  const countBrioche = allInProd.filter(o => getTipoMasa(o) === 'brioche').length;
+  const countPapa = allInProd.filter(o => getTipoMasa(o) === 'papa').length;
+  const countDulce = allInProd.filter(o => getTipoMasa(o) === 'dulce').length;
+
+  const btnBrioche = document.querySelector('.btn-dough[data-dough="brioche"]');
+  const btnPapa = document.querySelector('.btn-dough[data-dough="papa"]');
+  const btnDulce = document.querySelector('.btn-dough[data-dough="dulce"]');
+  if (btnBrioche) btnBrioche.innerHTML = `🟡 Masa Brioche${countBrioche > 0 ? ` <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold ${state.activeDough === 'brioche' ? 'bg-slate-950 text-amber-300' : 'bg-slate-900 text-amber-300 border border-slate-700'}">${countBrioche}</span>` : ''}`;
+  if (btnPapa) btnPapa.innerHTML = `🥔 Pan de Papa${countPapa > 0 ? ` <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold ${state.activeDough === 'papa' ? 'bg-slate-950 text-amber-300' : 'bg-slate-900 text-amber-300 border border-slate-700'}">${countPapa}</span>` : ''}`;
+  if (btnDulce) btnDulce.innerHTML = `🍬 Pan Dulce${countDulce > 0 ? ` <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold ${state.activeDough === 'dulce' ? 'bg-slate-950 text-amber-300' : 'bg-slate-900 text-amber-300 border border-slate-700'}">${countDulce}</span>` : ''}`;
 
   // 2. Título y masa activa
   const doughTitleEl = document.getElementById('tv-dough-title');
@@ -2316,14 +2346,44 @@ function renderProduccion() {
   const summaryTextEl = document.getElementById('tv-toppings-summary-text');
   const badgeProdCountEl = document.getElementById('badge-toppings-products-count');
   const badgeItemsCountEl = document.getElementById('badge-toppings-items-count');
+  const previewChipsEl = document.getElementById('tv-toppings-preview-chips');
+
   if (summaryTextEl) {
-    summaryTextEl.textContent = `${totalPanesUnidades.toLocaleString()} unidades netas • ${totalPaquetes.toLocaleString()} paquetes en producción (${distinctProducts.length} productos)`;
+    if (distinctProducts.length === 0 && allInProd.length > 0) {
+      summaryTextEl.innerHTML = `<span class="text-amber-400 font-bold">Sin pedidos en ${formulaMeta.nombre}.</span> <span class="text-slate-400">Hay ${allInProd.length} pedidos en otras masas (${countPapa > 0 ? `Pan de Papa: ${countPapa} ` : ''}${countDulce > 0 ? `Pan Dulce: ${countDulce}` : ''}${countBrioche > 0 ? `Brioche: ${countBrioche}` : ''}). Selecciona arriba para verlos.</span>`;
+    } else {
+      summaryTextEl.textContent = `${totalPanesUnidades.toLocaleString()} unidades netas • ${totalPaquetes.toLocaleString()} paquetes en producción (${distinctProducts.length} productos)`;
+    }
   }
   if (badgeProdCountEl) {
     badgeProdCountEl.textContent = `${distinctProducts.length} ${distinctProducts.length === 1 ? 'producto' : 'productos'}`;
   }
   if (badgeItemsCountEl) {
     badgeItemsCountEl.textContent = `${totalPanesUnidades.toLocaleString()} un`;
+  }
+
+  // Vista previa rápida de productos directamente en la barra de planta
+  if (previewChipsEl) {
+    if (distinctProducts.length > 0) {
+      previewChipsEl.classList.remove('hidden');
+      previewChipsEl.innerHTML = distinctProducts.map(prod => {
+        const topList = Object.values(prod.toppings || {});
+        const topSummary = topList.map(t => `${t.topping}: ${t.netUnidades}u`).join(' • ');
+        return `
+          <div class="px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center gap-2 text-xs">
+            <span class="font-bold text-white">${escapeHtml(prod.producto)}</span>
+            <span class="px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 font-mono font-bold text-[11px] border border-slate-700">${prod.peso}g</span>
+            <span class="font-black text-amber-400 font-mono">${prod.totalNetUnidades} un</span>
+            <span class="text-slate-400 font-mono">(${prod.totalNetPaquetes} pq)</span>
+            <span class="text-slate-600 hidden sm:inline">|</span>
+            <span class="text-slate-300 font-medium hidden sm:inline">${escapeHtml(topSummary)}</span>
+          </div>
+        `;
+      }).join('');
+    } else {
+      previewChipsEl.classList.add('hidden');
+      previewChipsEl.innerHTML = '';
+    }
   }
 
   // Renderizar el contenido dentro del Modal a Pantalla Completa
@@ -2376,7 +2436,7 @@ function renderModalConsolidadoProductos(productosConsolidados, totalPanesUnidad
   }
 
   // Ordenar productos: mayor gramaje primero, luego alfabéticamente
-  productsList.sort((a, b) => (b.peso - a.peso) || a.producto.localeCompare(b.producto));
+  productsList.sort((a, b) => (b.peso - a.peso) || String(a.producto || '').localeCompare(String(b.producto || '')));
 
   container.innerHTML = productsList.map(prod => {
     const cfg = SUBGRUPOS_CONFIG[prod.tipoMolde] || { titulo: prod.tipoMolde, badgeClass: 'text-slate-300 border-slate-700 bg-slate-800' };
