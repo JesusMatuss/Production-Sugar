@@ -660,15 +660,24 @@ async function loadOrders() {
           }
 
           // Si Google Sheets trae columnas de repartidor/costo/liquidado
-          if (o.repartidor || o.costo_delivery || o.liquidado) {
+          if (o.repartidor || o.costo_delivery || typeof o.liquidado !== 'undefined') {
             const rawFecha = o.fecha2 || o.fecha1 || 'SinFecha';
             const cardKey = `${o.cliente}___${rawFecha}`;
-            if (!state.deliveriesMeta[cardKey]) {
-              state.deliveriesMeta[cardKey] = {
-                repartidor: o.repartidor || '',
-                costo_delivery: parseFloat(o.costo_delivery) || 0,
-                liquidado: !!o.liquidado
+            const isLiq = typeof o.liquidado === 'boolean' 
+              ? o.liquidado 
+              : (String(o.liquidado).toUpperCase() === 'SI' || String(o.liquidado).toUpperCase() === 'TRUE');
+            const cost = parseFloat(o.costo_delivery) || 0;
+            const driver = o.repartidor || '';
+
+            if (!state.deliveriesMeta[o.rowIndex]) {
+              state.deliveriesMeta[o.rowIndex] = {
+                repartidor: driver,
+                costo: cost,
+                liquidado: isLiq
               };
+            }
+            if (!state.deliveriesMeta[cardKey]) {
+              state.deliveriesMeta[cardKey] = state.deliveriesMeta[o.rowIndex];
             }
           }
 
@@ -902,10 +911,28 @@ function setupEventListeners() {
   // Botón Fullscreen para TV
   document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
 
-  // Botón Ver Fórmula
-  document.getElementById('btn-formula').addEventListener('click', openFormulaModal);
-  document.getElementById('btn-close-modal').addEventListener('click', closeFormulaModal);
-  document.getElementById('formula-modal-backdrop').addEventListener('click', closeFormulaModal);
+  // Botón Ver Fórmula (Modal Pantalla Completa 100vw x 100vh)
+  const btnFormula = document.getElementById('btn-formula');
+  if (btnFormula) btnFormula.addEventListener('click', openFormulaModal);
+  const btnCloseFormula = document.getElementById('btn-close-modal');
+  if (btnCloseFormula) btnCloseFormula.addEventListener('click', closeFormulaModal);
+
+  // Botón Consolidado por Productos y Toppings (Modal Pantalla Completa 100vw x 100vh)
+  const btnOpenToppings = document.getElementById('btn-open-toppings-modal');
+  if (btnOpenToppings) btnOpenToppings.addEventListener('click', openToppingsModal);
+  const btnCloseToppings = document.getElementById('btn-close-toppings-modal');
+  if (btnCloseToppings) btnCloseToppings.addEventListener('click', closeToppingsModal);
+  const btnModalReset = document.getElementById('btn-modal-reset-discounts');
+  if (btnModalReset) btnModalReset.addEventListener('click', resetAllProductionDiscounts);
+
+  // Cierre accesible de modales con tecla Escape
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeFormulaModal();
+      closeToppingsModal();
+      closeClearProductionModal();
+    }
+  });
 
   // Botón Copiar Toppings para Hornero
   const btnCopyHornero = document.getElementById('btn-copy-hornero');
@@ -1175,11 +1202,9 @@ function renderPedidos() {
 
     if (!matchSearch) return false;
 
-    // 2. Filtro por Estado
+    // 2. Filtro por Estado (Únicamente Pendientes y En producción - Req 2.1)
     if (state.filterStatus === 'PENDIENTE' && o.estado !== 'PENDIENTE') return false;
     if (state.filterStatus === 'EN_PRODUCCION' && o.estado !== 'EN_PRODUCCION') return false;
-    if (state.filterStatus === 'REALIZADO' && o.estado !== 'REALIZADO') return false;
-    if (state.filterStatus === 'ENTREGADO' && o.estado !== 'ENTREGADO') return false;
 
     // 3. Filtro por Modalidad
     if (state.filterDelivery === 'RETIRO') {
@@ -1245,31 +1270,22 @@ function renderPedidos() {
 
   container.innerHTML = groupKeys.map(key => {
     const g = groups[key];
-    const allDelivered = g.items.every(i => i.estado === 'ENTREGADO');
-    const isRealizado = g.items.every(i => i.estado === 'REALIZADO' || i.estado === 'ENTREGADO');
     const allInProd = g.items.every(i => i.estado === 'EN_PRODUCCION');
     const someInProd = g.items.some(i => i.estado === 'EN_PRODUCCION');
     const hasPendingItems = g.items.some(i => i.estado === 'PENDIENTE');
-    const isDelivery = isDeliveryOrder(g.items[0]);
 
-    // Estilo de la tarjeta según estado
-    let cardBorder = "border-slate-800 hover:border-slate-700 bg-slate-900/90";
+    // Estilo de la tarjeta según estado (Exclusivamente Pendientes vs En producción - Req 2.1)
+    let cardBorder = "border-slate-800 hover:border-amber-500/40 bg-slate-900/90";
     let badgeHtml = '';
-    if (allDelivered) {
-      cardBorder = "border-emerald-500/40 bg-slate-900/60 shadow-lg shadow-emerald-500/5";
-      badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 whitespace-nowrap">✅ ENTREGADO</span>`;
-    } else if (isRealizado) {
-      cardBorder = "border-emerald-500/30 bg-slate-900/80 shadow-lg shadow-emerald-500/5";
-      badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 whitespace-nowrap">🥖 REALIZADO</span>`;
-    } else if (allInProd) {
-      cardBorder = "border-amber-500/40 bg-slate-900/60 shadow-lg shadow-amber-500/5";
-      badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap">📺 EN TV</span>`;
+    if (allInProd) {
+      cardBorder = "border-amber-500/50 bg-slate-900/80 shadow-lg shadow-amber-500/10";
+      badgeHtml = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap">📺 EN PRODUCCIÓN</span>`;
     } else if (someInProd) {
-      cardBorder = "border-amber-500/50 bg-slate-900/90 shadow-lg shadow-amber-500/5";
-      badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap">⏳ EN PRODUCCIÓN</span>`;
+      cardBorder = "border-amber-500/40 bg-slate-900/90 shadow-lg shadow-amber-500/10";
+      badgeHtml = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap">⏳ EN PRODUCCIÓN</span>`;
     } else {
       cardBorder = "border-slate-800 hover:border-amber-500/40 bg-slate-900/90";
-      badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/40 whitespace-nowrap">⏳ PENDIENTE</span>`;
+      badgeHtml = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/40 whitespace-nowrap">⏳ PENDIENTE</span>`;
     }
 
     // Modalidad de entrega limpia
@@ -1297,30 +1313,24 @@ function renderPedidos() {
     const rowsHtml = g.items.map(item => {
       const isChecked = state.selectedOrders.has(item.rowIndex);
       const isProd = item.estado === 'EN_PRODUCCION';
-      const isItemRealizado = item.estado === 'REALIZADO';
-      const isDelivered = item.estado === 'ENTREGADO';
-      const isSelectable = !isProd && !isDelivered && !isItemRealizado;
+      const isSelectable = !isProd;
       const uPorPaq = getUnidadesPorPaquete(item);
       const totalUnits = (item.paquetes || 0) * uPorPaq;
 
       let badgeItem = '';
-      if (isDelivered) {
-        badgeItem = `<span class="px-2 py-0.5 rounded text-xs font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30">Entregado</span>`;
-      } else if (isItemRealizado) {
-        badgeItem = `<span class="px-2 py-0.5 rounded text-xs font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30">Realizado</span>`;
-      } else if (isProd) {
+      if (isProd) {
         badgeItem = `
-          <button class="btn-retire-item inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold text-amber-300 hover:text-white bg-amber-500/10 hover:bg-red-500/80 border border-amber-500/20 hover:border-red-500 transition-all cursor-pointer shadow-sm group" data-row="${item.rowIndex}" title="Clic para retirar este ítem de Producción TV">
-            <span class="group-hover:hidden">En TV</span>
-            <span class="hidden group-hover:inline">Quitar</span>
-            <span class="text-red-400 group-hover:text-white font-black text-[10px]">✕</span>
+          <button class="btn-retire-item inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black text-amber-300 hover:text-white bg-amber-500/15 hover:bg-rose-600 border border-amber-500/30 hover:border-rose-600 transition-all cursor-pointer shadow-sm group" data-row="${item.rowIndex}" title="Clic para retirar este ítem de Producción TV y devolver a Pendientes">
+            <span class="group-hover:hidden">📺 En TV</span>
+            <span class="hidden group-hover:inline">Devolver</span>
+            <span class="text-amber-400 group-hover:text-white font-black text-[10px]">✕</span>
           </button>`;
       } else {
-        badgeItem = `<span class="px-2 py-0.5 rounded text-xs font-medium text-slate-400 bg-slate-800 border border-slate-700">Por Enviar</span>`;
+        badgeItem = `<span class="px-2.5 py-1 rounded-xl text-xs font-bold text-slate-400 bg-slate-800/80 border border-slate-700/80">⏳ Pendiente</span>`;
       }
 
       return `
-        <tr class="order-row border-b border-slate-800/70 hover:bg-slate-800/50 text-sm ${!isSelectable ? 'opacity-65' : 'cursor-pointer'}" data-row="${item.rowIndex}">
+        <tr class="order-row border-b border-slate-800/70 hover:bg-slate-800/50 text-sm ${!isSelectable ? 'opacity-70' : 'cursor-pointer'}" data-row="${item.rowIndex}">
           <td class="py-3 px-3 w-8">
             <input type="checkbox" 
                    data-row="${item.rowIndex}" 
@@ -1329,13 +1339,11 @@ function renderPedidos() {
                    ${!isSelectable ? 'disabled' : ''}>
           </td>
           <td class="py-3 px-2 font-medium text-slate-200">
-            ${item.producto}
-            <span class="block text-xs text-slate-400 font-normal">${item.presentacion || 'Estándar'} • ${item.peso_gr}g</span>
+            ${escapeHtml(item.producto)}
+            <span class="block text-xs text-slate-400 font-normal">${escapeHtml(item.presentacion || 'Estándar')} • ${item.peso_gr}g</span>
           </td>
           <td class="py-3 px-2">
-            <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded bg-slate-800 text-amber-300 border border-slate-700/60">
-              ${item.topping || 'Sin Topping'}
-            </span>
+            ${getToppingBadgeHtml(item.topping)}
           </td>
           <td class="py-3 px-3 text-right font-mono font-bold text-slate-100 whitespace-nowrap">
             ${item.paquetes} <span class="text-xs font-normal text-slate-400">pq (${totalUnits} un)</span>
@@ -1349,57 +1357,22 @@ function renderPedidos() {
         </tr>`;
     }).join('');
 
-    // --- TRES OPCIONES DE ACCIÓN POR PEDIDO ---
+    // --- ACCIONES EXCLUSIVAS DE PEDIDOS (Pendientes y En producción - Req 2.1) ---
     let actionButtonsHtml = '';
 
     // Selector rápido para enviar pendientes a producción
     if (hasPendingItems) {
       actionButtonsHtml += `
-        <button class="btn-select-client-items text-amber-400 hover:text-amber-300 font-bold px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all flex items-center gap-1 cursor-pointer text-xs" data-card-key="${encodeURIComponent(g.key)}" title="Seleccionar ítems para enviar a producción">
-          <span>Seleccionar</span>
+        <button class="btn-select-client-items text-amber-400 hover:text-amber-300 font-bold px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all flex items-center gap-1.5 cursor-pointer text-xs" data-card-key="${encodeURIComponent(g.key)}" title="Seleccionar ítems para enviar a producción">
+          <span>☑️ Seleccionar Ítems</span>
         </button>`;
     }
 
-    // ACCIÓN 1: Marcar como Realizado (sacar de cola activa de TV y pasar a fabricado)
+    // Acción para retirar tarjeta completa de producción y devolver a pendientes
     if (someInProd || allInProd) {
       actionButtonsHtml += `
-        <button class="btn-action-card-realizado text-amber-300 hover:text-white font-bold px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/30 transition-all flex items-center gap-1 cursor-pointer text-xs" data-card-key="${encodeURIComponent(g.key)}" title="Marcar como fabricado/realizado (retirar de cola activa en TV)">
-          <span>🥖 Realizado</span>
-        </button>`;
-      actionButtonsHtml += `
-        <button class="btn-retire-card text-red-400 hover:text-red-300 font-bold px-2 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-all flex items-center gap-1 cursor-pointer text-xs" data-card-key="${encodeURIComponent(g.key)}" title="Retirar de Producción TV">
-          <span>✕ TV</span>
-        </button>`;
-    } else if (isRealizado && !allDelivered) {
-      actionButtonsHtml += `
-        <button class="btn-action-card-revert-prod text-emerald-400 hover:text-amber-300 font-bold px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-amber-500/20 border border-emerald-500/30 transition-all flex items-center gap-1 cursor-pointer text-xs" data-card-key="${encodeURIComponent(g.key)}" title="Devolver a Producción TV">
-          <span>✅ Realizado ↩️</span>
-        </button>`;
-    }
-
-    // ACCIÓN 2: Enviar a Delivery (o cambiar a Retiro)
-    if (!isDelivery) {
-      actionButtonsHtml += `
-        <button class="btn-action-card-delivery text-purple-300 hover:text-white font-bold px-2.5 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/30 transition-all flex items-center gap-1 cursor-pointer text-xs" data-card-key="${encodeURIComponent(g.key)}" title="Cambiar modalidad a Delivery y ver en pestaña Deliverys">
-          <span>🛵 Delivery</span>
-        </button>`;
-    } else {
-      actionButtonsHtml += `
-        <button class="btn-action-card-pickup text-slate-300 hover:text-amber-300 font-bold px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all flex items-center gap-1 cursor-pointer text-xs" data-card-key="${encodeURIComponent(g.key)}" title="Cambiar a Retiro en Tienda">
-          <span>🏪 Retiro</span>
-        </button>`;
-    }
-
-    // ACCIÓN 3: Listo para entregar / despachar
-    if (!allDelivered) {
-      actionButtonsHtml += `
-        <button class="btn-action-card-entregar text-white font-bold px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:brightness-110 shadow-md shadow-emerald-600/25 transition-all flex items-center gap-1 cursor-pointer text-xs" data-card-key="${encodeURIComponent(g.key)}" title="Marcar como entregado/despachado">
-          <span>📦 Entregar</span>
-        </button>`;
-    } else {
-      actionButtonsHtml += `
-        <button class="btn-action-card-revert-entregar text-slate-400 hover:text-white font-bold px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all flex items-center gap-1 cursor-pointer text-xs" data-card-key="${encodeURIComponent(g.key)}" title="Reactivar pedido (quitar de entregado)">
-          <span>↩️</span>
+        <button class="btn-retire-card text-rose-400 hover:text-white font-black px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-600 border border-rose-500/30 hover:border-rose-600 transition-all flex items-center gap-1.5 cursor-pointer text-xs active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Retirar pedido completo de Producción TV y devolver a Pendientes">
+          <span>✕ Retirar de Producción</span>
         </button>`;
     }
 
@@ -1699,16 +1672,19 @@ async function sendSelectedToProduction() {
 function retireFromProduction(rowIndices, label = '') {
   if (!rowIndices || rowIndices.length === 0) return;
 
-  const localDelivered = getLocalDeliveredIndices();
-
   // 1. Actualizar estado local inmediatamente
+  const localDelivered = getLocalDeliveredIndices();
+  const localRealizados = getLocalRealizadosIndices();
+
   state.orders.forEach(o => {
     if (rowIndices.includes(o.rowIndex)) {
       o.estado = 'PENDIENTE';
       localDelivered.delete(o.rowIndex);
+      localRealizados.delete(o.rowIndex);
     }
   });
   saveLocalDeliveredIndices(localDelivered);
+  saveLocalRealizadosIndices(localRealizados);
   saveLocalOrders();
 
   // 2. Deseleccionar si estuviesen en el set de selección
@@ -1734,9 +1710,7 @@ function retireFromProduction(rowIndices, label = '') {
   }
 
   // 4. Re-renderizar de inmediato Pedidos, Producción TV y Entregas
-  renderPedidos();
-  renderProduccion();
-  renderEntregas();
+  renderAllViews();
 
   // 5. Notificación toast de confirmación inmediata
   const toast = document.getElementById('toast-notification');
@@ -1762,6 +1736,42 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// Colores distintivos y badges de alta legibilidad por tipo de Topping (Req 4.2)
+function getToppingBadgeHtml(toppingName, extraClass = '') {
+  const raw = (toppingName || '').trim();
+  const norm = raw.toLowerCase();
+
+  let badgeClass = 'topping-badge-natural';
+  let icon = '🍞';
+
+  if (norm.includes('ajonjol') || norm.includes('sesamo') || norm.includes('sésamo')) {
+    badgeClass = 'topping-badge-ajonjoli';
+    icon = '✨';
+  } else if (norm.includes('oregan') || norm.includes('orégan') || norm.includes('hierba')) {
+    badgeClass = 'topping-badge-oregano';
+    icon = '🌿';
+  } else if (norm.includes('queso') || norm.includes('parmesan') || norm.includes('cheddar')) {
+    badgeClass = 'topping-badge-parmesano';
+    icon = '🧀';
+  } else if (norm.includes('amapola') || norm.includes('semilla') || norm.includes('chia') || norm.includes('chía')) {
+    badgeClass = 'topping-badge-amapola';
+    icon = '🌱';
+  } else if (!norm || norm.includes('sin') || norm.includes('natural') || norm.includes('ningun') || norm.includes('ningún')) {
+    badgeClass = 'topping-badge-natural';
+    icon = '🍞';
+  } else {
+    // Hash determinístico para toppings adicionales desde Google Sheets
+    let hash = 0;
+    for (let i = 0; i < norm.length; i++) hash = (hash << 5) - hash + norm.charCodeAt(i);
+    const variantIndex = Math.abs(hash) % 3;
+    badgeClass = `topping-badge-dynamic-${variantIndex}`;
+    icon = '🥯';
+  }
+
+  const displayText = raw || 'Sin Topping';
+  return `<span class="topping-badge ${badgeClass} ${extraClass}" title="Topping: ${escapeHtml(displayText)}"><span class="text-[11px] leading-none">${icon}</span><span>${escapeHtml(displayText)}</span></span>`;
 }
 
 // Actualizar contadores de las pestañas de navegación
@@ -2212,205 +2222,290 @@ function renderProduccion() {
 
   // 6. Actualizar visibilidad del botón para restablecer todos los descuentos de la masa
   const btnResetAll = document.getElementById('btn-reset-all-discounts');
+  const btnModalReset = document.getElementById('btn-modal-reset-discounts');
   const badgeDiscounts = document.getElementById('badge-active-discounts-count');
-  if (btnResetAll) {
-    if (activeDiscountsCount > 0) {
+  if (activeDiscountsCount > 0) {
+    if (btnResetAll) {
       btnResetAll.classList.remove('hidden');
       btnResetAll.classList.add('flex');
-      if (badgeDiscounts) badgeDiscounts.textContent = activeDiscountsCount;
-    } else {
+    }
+    if (btnModalReset) {
+      btnModalReset.classList.remove('hidden');
+      btnModalReset.classList.add('flex');
+    }
+    if (badgeDiscounts) badgeDiscounts.textContent = activeDiscountsCount;
+  } else {
+    if (btnResetAll) {
       btnResetAll.classList.add('hidden');
       btnResetAll.classList.remove('flex');
     }
+    if (btnModalReset) {
+      btnModalReset.classList.add('hidden');
+      btnModalReset.classList.remove('flex');
+    }
   }
 
-  // 7. Renderizar Bloque 1: Consolidado por Toppings (con controles de descuento)
-  renderConsolidadoToppings(consolidado);
+  // 7. Consolidar agrupando primariamente por Tipo de Producto / Pan (Req 4.1)
+  const productosConsolidados = {};
+  prodOrders.forEach(o => {
+    const prodName = (o.producto || '').trim();
+    const peso = parseFloat(o.peso_gr) || 0;
+    const pres = (o.presentacion || 'Estándar').trim();
+    const tipoMolde = getTipoMolde(o);
+    const subtipo = getSubtipoRuedas(o);
+    const topping = (o.topping || 'Sin Topping').trim();
+    const paqOrig = parseFloat(o.paquetes) || 0;
+    const uPorPaq = getUnidadesPorPaquete(o);
+    const unOrig = paqOrig * uPorPaq;
+
+    const prodKey = `${prodName}___${peso}___${tipoMolde}`;
+    const discountKey = `${state.activeDough}:::${topping}:::${tipoMolde}:::${prodName}:::${peso}`;
+
+    if (!productosConsolidados[prodKey]) {
+      productosConsolidados[prodKey] = {
+        key: prodKey,
+        producto: prodName,
+        peso: peso,
+        tipoMolde: tipoMolde,
+        presentacion: pres,
+        subtipo: subtipo,
+        totalNetUnidades: 0,
+        totalNetPaquetes: 0,
+        toppings: {}
+      };
+    }
+
+    const p = productosConsolidados[prodKey];
+    if (!p.toppings[topping]) {
+      p.toppings[topping] = {
+        topping: topping,
+        peso: peso,
+        tipoMolde: tipoMolde,
+        discountKey: discountKey,
+        uPorPaq: uPorPaq,
+        paquetesOriginal: 0,
+        unidadesOriginal: 0,
+        descPaq: 0,
+        descUn: 0,
+        netPaquetes: 0,
+        netUnidades: 0
+      };
+    }
+
+    const topObj = p.toppings[topping];
+    topObj.paquetesOriginal += paqOrig;
+    topObj.unidadesOriginal += unOrig;
+  });
+
+  // Calcular totales netos de cada producto y sus toppings
+  const distinctProducts = Object.values(productosConsolidados);
+  distinctProducts.forEach(prod => {
+    Object.values(prod.toppings).forEach(top => {
+      const rawDiscount = state.productionDiscounts[top.discountKey] || 0;
+      top.descPaq = Math.min(top.paquetesOriginal, Math.max(0, rawDiscount));
+      top.descUn = top.descPaq * top.uPorPaq;
+      top.netPaquetes = Math.max(0, top.paquetesOriginal - top.descPaq);
+      top.netUnidades = top.netPaquetes * top.uPorPaq;
+
+      prod.totalNetPaquetes += top.netPaquetes;
+      prod.totalNetUnidades += top.netUnidades;
+    });
+  });
+
+  // Actualizar resumen en la barra principal de Producción TV (Req 4.1)
+  const summaryTextEl = document.getElementById('tv-toppings-summary-text');
+  const badgeProdCountEl = document.getElementById('badge-toppings-products-count');
+  const badgeItemsCountEl = document.getElementById('badge-toppings-items-count');
+  if (summaryTextEl) {
+    summaryTextEl.textContent = `${totalPanesUnidades.toLocaleString()} unidades netas • ${totalPaquetes.toLocaleString()} paquetes en producción (${distinctProducts.length} productos)`;
+  }
+  if (badgeProdCountEl) {
+    badgeProdCountEl.textContent = `${distinctProducts.length} ${distinctProducts.length === 1 ? 'producto' : 'productos'}`;
+  }
+  if (badgeItemsCountEl) {
+    badgeItemsCountEl.textContent = `${totalPanesUnidades.toLocaleString()} un`;
+  }
+
+  // Renderizar el contenido dentro del Modal a Pantalla Completa
+  renderModalConsolidadoProductos(productosConsolidados, totalPanesUnidades, totalPaquetes);
 
   // 8. Renderizar Bloque 2: Ruedas (Picadora de 36 unidades con unidades netas)
   renderBloqueRuedas(ruedasHamburguesas, ruedasEnrollados);
 }
 
-// Configuración visual de subgrupos dentro de cada Topping
-const SUBGRUPOS_CONFIG = {
-  CON_MOLDE: {
-    titulo: '🥫 CON MOLDE',
-    badgeClass: 'text-amber-400 border-amber-500/30 bg-amber-500/10'
-  },
-  SIN_MOLDE: {
-    titulo: '🍞 SIN MOLDE',
-    badgeClass: 'text-sky-400 border-sky-500/30 bg-sky-500/10'
-  },
-  ENROLLADOS: {
-    titulo: '🌭 ENROLLADOS / PERROS',
-    badgeClass: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
-  },
-  GENERAL: {
-    titulo: '✨ OTROS PRODUCTOS',
-    badgeClass: 'text-purple-400 border-purple-500/30 bg-purple-500/10'
-  }
-};
+// ==========================================
+// MODAL CONSOLIDADO DE PRODUCTOS & TOPPINGS (Req 4.1)
+// ==========================================
+function openToppingsModal() {
+  const modal = document.getElementById('modal-toppings-consolidado');
+  if (modal) modal.classList.remove('hidden');
+}
 
-// Renderizar tarjetas de toppings con controles para restar paquetes por no retiro
-function renderConsolidadoToppings(consolidado) {
-  const container = document.getElementById('tv-toppings-container');
+function closeToppingsModal() {
+  const modal = document.getElementById('modal-toppings-consolidado');
+  if (modal) modal.classList.add('hidden');
+}
+
+// ==========================================
+// RENDERIZAR CONSOLIDADO POR PRODUCTOS EN MODAL (Req 4.1)
+// ==========================================
+function renderModalConsolidadoProductos(productosConsolidados, totalPanesUnidades, totalPaquetes) {
+  const container = document.getElementById('modal-products-grid');
+  const badgeDough = document.getElementById('modal-toppings-dough-badge');
+  const metricsEl = document.getElementById('modal-toppings-metrics-text');
+
+  if (badgeDough) {
+    const metaDough = FORMULAS_BASE[state.activeDough];
+    badgeDough.textContent = metaDough ? metaDough.nombre : state.activeDough;
+  }
+
+  if (metricsEl) {
+    metricsEl.innerHTML = `Total en producción: <strong class="text-amber-300 font-bold">${totalPanesUnidades.toLocaleString()} un</strong> • <strong class="text-slate-200 font-bold">${totalPaquetes.toLocaleString()} pq</strong>`;
+  }
+
   if (!container) return;
 
-  const toppingKeys = Object.keys(consolidado);
-  if (toppingKeys.length === 0) {
+  const productsList = Object.values(productosConsolidados || {});
+  if (productsList.length === 0) {
     container.innerHTML = `
       <div class="col-span-full py-16 text-center text-slate-500 bg-slate-900/40 rounded-3xl border border-slate-800">
         <p class="text-2xl font-bold text-slate-400">No hay pedidos en producción para esta masa.</p>
-        <p class="text-sm text-slate-500 mt-2">Envía pedidos desde la sección "Pedidos" para verlos en el TV.</p>
+        <p class="text-sm text-slate-500 mt-2">Envía pedidos desde la sección "Pedidos" para visualizarlos aquí en planta.</p>
       </div>`;
     return;
   }
 
-  container.innerHTML = toppingKeys.map(key => {
-    const group = consolidado[key];
+  // Ordenar productos: mayor gramaje primero, luego alfabéticamente
+  productsList.sort((a, b) => (b.peso - a.peso) || a.producto.localeCompare(b.producto));
 
-    // Orden de subgrupos: Con Molde primero, Sin Molde después, luego Enrollados y General
-    const orderSubgrupos = ['CON_MOLDE', 'SIN_MOLDE', 'ENROLLADOS', 'GENERAL'];
-    
-    // Generar HTML por subgrupo
-    const subgruposHtml = orderSubgrupos.map(subKey => {
-      const itemsObj = (group.subgrupos && group.subgrupos[subKey]) ? group.subgrupos[subKey] : {};
-      const itemsList = Object.values(itemsObj);
-      if (itemsList.length === 0) return '';
+  container.innerHTML = productsList.map(prod => {
+    const cfg = SUBGRUPOS_CONFIG[prod.tipoMolde] || { titulo: prod.tipoMolde, badgeClass: 'text-slate-300 border-slate-700 bg-slate-800' };
+    const toppingsList = Object.values(prod.toppings || {});
 
-      const cfg = SUBGRUPOS_CONFIG[subKey] || { titulo: subKey, badgeClass: 'text-slate-300 border-slate-700 bg-slate-800' };
-      const subTotalUnidades = itemsList.reduce((sum, it) => sum + (it.netUnidades || 0), 0);
-      const subTotalPaquetes = itemsList.reduce((sum, it) => sum + (it.netPaquetes || 0), 0);
-
-      const itemsRows = itemsList.map(it => `
-        <div class="flex items-center justify-between py-2.5 border-b border-slate-800/60 last:border-0 gap-3">
-          
-          <!-- Izquierda: Nombre, gramaje, badge de descuento si aplica -->
+    // Filas de toppings para este producto
+    const toppingsRows = toppingsList.map(top => {
+      return `
+        <div class="py-3 first:pt-1 last:pb-1 flex items-center justify-between gap-3">
+          <!-- Topping badge y estado de descuento -->
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="text-slate-100 font-bold text-sm tracking-tight">${escapeHtml(it.producto)}</span>
-              <span class="px-2 py-0.5 rounded-md bg-slate-800 text-amber-300 font-mono font-black text-xs border border-slate-700 whitespace-nowrap shadow-sm">
-                ${it.peso}g
-              </span>
-              ${it.descPaq > 0 ? `
+            <div class="flex items-center gap-2 flex-wrap">
+              ${getToppingBadgeHtml(top.topping)}
+              ${top.descPaq > 0 ? `
                 <span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/30 whitespace-nowrap shadow-sm flex items-center gap-1" title="Paquetes restados por no retiro de cliente">
-                  <span>📉</span> Desc. -${it.descPaq} pq (-${it.descUn} un)
+                  <span>📉</span> -${top.descPaq} pq (-${top.descUn} un)
                 </span>
               ` : ''}
             </div>
-            ${it.descPaq > 0 ? `
-              <span class="text-[11px] text-slate-400 block mt-0.5 font-medium">
-                Pedidos orig: <strong class="text-slate-300">${it.paquetesOriginal} pq</strong> (${it.unidadesOriginal} un)
+            ${top.descPaq > 0 ? `
+              <span class="text-[11px] text-slate-400 block mt-1 font-medium">
+                Pedido original: <strong class="text-slate-300">${top.paquetesOriginal} pq</strong> (${top.unidadesOriginal} un)
               </span>
             ` : ''}
           </div>
 
-          <!-- Derecha: Unidades netas, paquetes netos y controles de restar/sumar -->
-          <div class="text-right whitespace-nowrap flex flex-col items-end">
-            
-            <!-- Unidades netas a producir -->
+          <!-- Métricas y Controles de Ajuste (- / + / ↺) -->
+          <div class="text-right whitespace-nowrap flex flex-col items-end shrink-0">
             <div class="flex items-baseline justify-end gap-1">
-              <span class="text-2xl font-black text-white tv-display-num ${it.descPaq > 0 ? 'text-amber-300' : ''}">${it.netUnidades}</span>
+              <span class="text-2xl font-black tv-display-num ${top.descPaq > 0 ? 'text-amber-300' : 'text-white'}">${top.netUnidades}</span>
               <span class="text-xs font-bold text-amber-400 tracking-wider">UN</span>
             </div>
-
-            <!-- Paquetes netos a producir -->
-            <span class="text-[11px] text-slate-400 font-mono block -mt-1 font-medium">
-              <strong class="text-slate-200">${it.netPaquetes} pq</strong>
-              ${it.descPaq > 0 ? `<span class="line-through text-slate-500 text-[10px] ml-1">(${it.paquetesOriginal} pq)</span>` : ''}
+            <span class="text-[11px] text-slate-400 font-mono block -mt-1 font-semibold">
+              <strong class="text-slate-200">${top.netPaquetes} pq</strong>
+              ${top.descPaq > 0 ? `<span class="line-through text-slate-500 text-[10px] ml-1">(${top.paquetesOriginal} pq)</span>` : ''}
             </span>
 
-            <!-- Control de Restar / Sumar Paquetes -->
-            <div class="flex items-center gap-1 mt-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
+            <!-- Control interactivo de restar/sumar paquetes -->
+            <div class="flex items-center gap-1 mt-1.5 bg-slate-950/70 p-1 rounded-xl border border-slate-800/80 shadow-sm">
               <button type="button" 
                 class="btn-pq-minus w-6 h-6 rounded-lg bg-slate-800 hover:bg-rose-900/40 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 flex items-center justify-center font-black text-xs transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed active:scale-95" 
-                data-key="${escapeHtml(it.discountKey)}" 
+                data-key="${escapeHtml(top.discountKey)}" 
                 title="Restar 1 paquete de producción (cliente no retiró)"
-                ${it.netPaquetes <= 0 ? 'disabled' : ''}>
+                ${top.netPaquetes <= 0 ? 'disabled' : ''}>
                 −
               </button>
 
               <input type="number" 
                 min="0" 
-                max="${it.paquetesOriginal}" 
-                value="${it.descPaq}" 
-                class="input-pq-discount w-10 text-center text-xs font-mono font-bold bg-slate-900 border border-slate-700/80 rounded-lg py-0.5 text-slate-200 focus:outline-none focus:border-rose-500 ${it.descPaq > 0 ? 'text-rose-400 font-black border-rose-500/40 bg-rose-500/10' : ''}" 
-                data-key="${escapeHtml(it.discountKey)}" 
-                data-max="${it.paquetesOriginal}" 
+                max="${top.paquetesOriginal}" 
+                value="${top.descPaq}" 
+                class="input-pq-discount w-10 text-center text-xs font-mono font-bold bg-slate-900 border border-slate-700/80 rounded-lg py-0.5 text-slate-200 focus:outline-none focus:border-rose-500 ${top.descPaq > 0 ? 'text-rose-400 font-black border-rose-500/40 bg-rose-500/10' : ''}" 
+                data-key="${escapeHtml(top.discountKey)}" 
+                data-max="${top.paquetesOriginal}" 
                 title="Paquetes a descontar de la producción">
 
               <button type="button" 
                 class="btn-pq-plus w-6 h-6 rounded-lg bg-slate-800 hover:bg-emerald-900/40 text-slate-300 hover:text-emerald-300 border border-slate-700 hover:border-emerald-500/40 flex items-center justify-center font-black text-xs transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed active:scale-95" 
-                data-key="${escapeHtml(it.discountKey)}" 
+                data-key="${escapeHtml(top.discountKey)}" 
                 title="Sumar 1 paquete (devolver hacia el pedido original)"
-                ${it.descPaq <= 0 ? 'disabled' : ''}>
+                ${top.descPaq <= 0 ? 'disabled' : ''}>
                 +
               </button>
 
-              ${it.descPaq > 0 ? `
+              ${top.descPaq > 0 ? `
                 <button type="button" 
                   class="btn-pq-reset ml-0.5 px-1.5 py-0.5 rounded-lg text-[10px] font-bold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 transition-all cursor-pointer active:scale-95" 
-                  data-key="${escapeHtml(it.discountKey)}" 
+                  data-key="${escapeHtml(top.discountKey)}" 
                   title="Restablecer paquetes originales">
                   ↺
                 </button>
               ` : ''}
             </div>
-
-          </div>
-        </div>
-      `).join('');
-
-      return `
-        <div class="mt-4 first:mt-0">
-          <div class="flex items-center justify-between pb-1 mb-2 border-b border-slate-800/80">
-            <span class="px-2 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wider border ${cfg.badgeClass}">
-              ${cfg.titulo}
-            </span>
-            <span class="text-xs font-bold text-slate-400 font-mono">${subTotalUnidades} un (${subTotalPaquetes} pq)</span>
-          </div>
-          <div class="space-y-0.5">
-            ${itemsRows}
           </div>
         </div>
       `;
     }).join('');
 
     return `
-      <div class="bg-slate-900/90 rounded-3xl p-5 border-2 border-slate-800 shadow-2xl flex flex-col justify-between hover:border-amber-500/40 transition-all">
+      <div class="bg-slate-900/90 rounded-3xl p-5 border-2 border-slate-800 shadow-xl flex flex-col justify-between hover:border-amber-500/40 transition-all">
         <div>
-          <!-- Cabecera de Topping con total prominente de unidades netas -->
-          <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-800">
-            <span class="px-3.5 py-1.5 text-sm font-black rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 tracking-wide uppercase">
-              ${group.topping}
-            </span>
-            <div class="text-right">
-              <span class="text-3xl font-black text-white tv-display-num">${group.totalUnidades}</span>
-              <span class="text-[10px] text-slate-400 uppercase block font-bold tracking-wider">Unidades Totales</span>
+          <!-- Cabecera de la Tarjeta del Producto -->
+          <div class="pb-3 border-b border-slate-800">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1 min-w-0">
+                <h4 class="text-base font-black text-white tracking-tight leading-snug">${escapeHtml(prod.producto)}</h4>
+                <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-md bg-slate-800 text-amber-300 font-mono font-black text-xs border border-slate-700 shadow-sm">
+                    ${prod.peso}g
+                  </span>
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${cfg.badgeClass}">
+                    ${cfg.titulo}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Total Neto del Producto -->
+              <div class="text-right shrink-0 bg-slate-950/80 px-3 py-1.5 rounded-2xl border border-slate-800/80 shadow-inner">
+                <div class="flex items-baseline justify-end gap-1">
+                  <span class="text-2xl font-black text-white tv-display-num">${prod.totalNetUnidades}</span>
+                  <span class="text-xs font-bold text-amber-400">UN</span>
+                </div>
+                <span class="text-[11px] text-slate-400 font-mono font-bold block -mt-1">${prod.totalNetPaquetes} pq</span>
+              </div>
             </div>
           </div>
 
-          <!-- Subgrupos Con Molde / Sin Molde / Enrollados con scroll suave si es largo -->
-          <div class="max-h-[380px] overflow-y-auto pr-1">
-            ${subgruposHtml}
+          <!-- Lista de Toppings para este Producto -->
+          <div class="mt-1 divide-y divide-slate-800/50">
+            ${toppingsRows}
           </div>
         </div>
 
-        <!-- Pie de Tarjeta con total paquetes netos -->
-        <div class="mt-3 pt-3 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
-          <span>Total en paquetes:</span>
-          <span class="font-mono text-base font-bold text-white">${group.totalPaquetes} pqtes</span>
+        <!-- Pie de Tarjeta -->
+        <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
+          <span>${toppingsList.length} ${toppingsList.length === 1 ? 'topping' : 'toppings'} configurados</span>
+          <span class="font-mono font-medium">${prod.totalNetUnidades} un netas</span>
         </div>
-      </div>`;
+      </div>
+    `;
   }).join('');
 
-  // Vincular eventos interactivos para restar/sumar paquetes
-  bindConsolidadoDiscountEvents();
+  // Vincular eventos interactivos para restar/sumar paquetes dentro del modal
+  bindModalDiscountEvents();
 }
 
-// Vincular eventos a los controles de descuento en el consolidado
-function bindConsolidadoDiscountEvents() {
-  const container = document.getElementById('tv-toppings-container');
+// Vincular eventos a los controles de descuento en el modal
+function bindModalDiscountEvents() {
+  const container = document.getElementById('modal-products-grid');
   if (!container) return;
 
   // Botón Restar 1 paquete (−)
@@ -2530,18 +2625,17 @@ function renderBloqueRuedas(ruedasHamburguesas, ruedasEnrollados) {
       return `
         <tr class="border-b border-slate-800/80 hover:bg-slate-800/30 text-base">
           <td class="py-4 px-4 font-bold text-slate-200">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-lg lg:text-xl font-black text-white">Rueda ${peso} gr</span>
+            <div class="flex items-center gap-2.5 flex-wrap">
+              <span class="text-3xl lg:text-4xl font-black text-white tracking-tight">${peso}gr</span>
               ${badgeMolde}
               ${badgeTrenzada}
               ${esRuedaMitad ? `<span class="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">1/2 Rueda (${tamanoRueda} un)</span>` : ''}
             </div>
-            <span class="text-xs text-slate-400 font-mono font-normal">(${pesoRueda.toLocaleString()} g masa por corte)</span>
-            <span class="block text-xs font-semibold text-slate-400 mt-1">Total: <strong class="text-white font-mono">${item.unidadesTotales}</strong> unidades</span>
+            <span class="text-xs text-slate-400 font-mono font-normal block mt-1">(${pesoRueda.toLocaleString()} g masa por corte)</span>
           </td>
           <td class="py-4 px-4 text-center">
             <span class="text-4xl lg:text-5xl font-black text-amber-400 tv-display-num tracking-tight">${calc.cantidad}</span>
-            <span class="text-xs lg:text-sm text-slate-300 block font-bold mt-1 uppercase tracking-wider">${calc.cantidad === 1 ? 'rueda' : 'ruedas'}</span>
+            <span class="text-xs lg:text-sm text-slate-300 block font-bold mt-1 uppercase tracking-wider">${calc.cantidad === 1 ? 'RUEDA' : 'RUEDAS'}</span>
           </td>
           <td class="py-4 px-4 text-right">
             ${badgeAjuste}
@@ -2686,10 +2780,21 @@ function openFormulaModal() {
   document.getElementById('formula-target-kg').textContent = (masaTotalGramos / 1000).toFixed(2);
   
   // Calcular Factor de Escala respecto a la Masa Total Base de la receta
-  // Si no hay pedidos en producción, mostrar la receta base estándar
   let scaleFactor = 1;
   if (masaTotalGramos > 0 && meta.masaTotalBase > 0) {
     scaleFactor = masaTotalGramos / meta.masaTotalBase;
+  }
+
+  // Harina Base e Ingredientes Totales (Req 4.3)
+  const flourKgEl = document.getElementById('formula-flour-kg');
+  const countIngEl = document.getElementById('formula-ingredients-count');
+  if (flourKgEl) {
+    const baseHarina = meta.baseHarina || (meta.ingredientes && meta.ingredientes[0] ? meta.ingredientes[0].base : 45000);
+    const harinaGramos = baseHarina * scaleFactor;
+    flourKgEl.textContent = (harinaGramos / 1000).toFixed(2);
+  }
+  if (countIngEl) {
+    countIngEl.textContent = (meta.ingredientes || []).length;
   }
 
   const tbody = document.getElementById('formula-table-body');
@@ -2755,32 +2860,38 @@ function renderEntregas() {
     allGroups[key].push(o);
   });
 
-  let countPorDespachar = 0;
+  let countEnProd = 0;
+  let countRealizados = 0;
   let countEntregados = 0;
   Object.values(allGroups).forEach(items => {
     if (items.every(i => i.estado === 'ENTREGADO')) {
       countEntregados++;
+    } else if (items.every(i => i.estado === 'REALIZADO' || i.estado === 'ENTREGADO')) {
+      countRealizados++;
     } else {
-      countPorDespachar++;
+      countEnProd++;
     }
   });
 
-  // Actualizar opciones del selector de estado en Entregas
-  const optProd = document.querySelector('#filter-status-entregas option[value="EN_PRODUCCION"]');
-  const optEnt = document.querySelector('#filter-status-entregas option[value="ENTREGADO"]');
+  // Actualizar opciones del selector de estado en Entregas (Req 2.2)
   const optAll = document.querySelector('#filter-status-entregas option[value="ALL"]');
-  if (optProd) optProd.textContent = `🔥 Por Despachar (${countPorDespachar})`;
-  if (optEnt) optEnt.textContent = `✅ Ya Entregados (${countEntregados})`;
-  if (optAll) optAll.textContent = `📋 Todos (${countPorDespachar + countEntregados})`;
+  const optProd = document.querySelector('#filter-status-entregas option[value="EN_PRODUCCION"]');
+  const optReal = document.querySelector('#filter-status-entregas option[value="REALIZADO"]');
+  const optEnt = document.querySelector('#filter-status-entregas option[value="ENTREGADO"]');
+  if (optAll) optAll.textContent = `📋 Todos los estados (${countEnProd + countRealizados + countEntregados})`;
+  if (optProd) optProd.textContent = `📺 En producción (${countEnProd})`;
+  if (optReal) optReal.textContent = `🥖 Fabricados / Por despachar (${countRealizados})`;
+  if (optEnt) optEnt.textContent = `✅ Entregados (${countEntregados})`;
 
   if (countEl) {
-    countEl.textContent = `${countPorDespachar} por despachar • ${countEntregados} entregados`;
+    countEl.textContent = `${countEnProd} en producción • ${countRealizados} fabricados • ${countEntregados} entregados`;
   }
 
-  // 2. Filtrar según controles del usuario
+  // 2. Filtrar según controles del usuario (Únicamente los 3 estados operativos - Req 2.2)
   const filtered = eligibleOrders.filter(o => {
     // Filtro de Estado
-    if (state.filterStatusEntregas === 'EN_PRODUCCION' && o.estado === 'ENTREGADO') return false;
+    if (state.filterStatusEntregas === 'EN_PRODUCCION' && o.estado !== 'EN_PRODUCCION') return false;
+    if (state.filterStatusEntregas === 'REALIZADO' && o.estado !== 'REALIZADO') return false;
     if (state.filterStatusEntregas === 'ENTREGADO' && o.estado !== 'ENTREGADO') return false;
 
     // Filtro de Búsqueda
@@ -2889,7 +3000,7 @@ function renderEntregas() {
         <div class="flex items-center justify-between py-2 border-b border-slate-800/60 last:border-0 text-xs">
           <div class="flex items-center gap-2">
             <span class="font-bold text-slate-200">${escapeHtml(item.producto)}</span>
-            ${item.topping ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-medium">${escapeHtml(item.topping)}</span>` : ''}
+            ${getToppingBadgeHtml(item.topping, 'text-[11px] py-0.5 px-2')}
           </div>
           <div class="text-right whitespace-nowrap flex items-center gap-2 font-mono">
             <span class="font-black text-white text-sm">${paq} pq</span>
@@ -2905,11 +3016,11 @@ function renderEntregas() {
     } else if (isRealizado) {
       statusBadge = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">🥖 LISTO DESPACHO</span>`;
     } else {
-      statusBadge = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40">🔥 EN PRODUCCIÓN</span>`;
+      statusBadge = `<span class="px-2.5 py-1 text-xs font-black rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40">📺 EN PRODUCCIÓN</span>`;
     }
 
     return `
-      <div class="bg-slate-900/90 rounded-3xl p-5 border-2 ${isAllDelivered ? 'border-emerald-500/40 bg-slate-900/60 shadow-lg shadow-emerald-500/5' : 'border-slate-800 hover:border-amber-500/40'} shadow-2xl flex flex-col justify-between transition-all">
+      <div class="bg-slate-900/90 rounded-3xl p-5 border-2 ${isAllDelivered ? 'border-emerald-500/40 bg-slate-900/60 shadow-lg shadow-emerald-500/5' : (isRealizado ? 'border-cyan-500/40 shadow-lg shadow-cyan-500/5' : 'border-slate-800 hover:border-amber-500/40')} shadow-2xl flex flex-col justify-between transition-all">
         <div>
           <!-- Cabecera de la tarjeta con Monto Total en $ -->
           <div class="flex items-start justify-between gap-3 mb-3 pb-3 border-b border-slate-800">
@@ -2920,7 +3031,7 @@ function renderEntregas() {
                   $${g.totalMonto.toFixed(2)}
                 </span>
               </div>
-              <div class="flex items-center gap-2 mt-1 text-xs text-slate-400">
+              <div class="flex items-center gap-2 mt-1 text-xs text-slate-400 font-mono">
                 <span>📅 ${g.fechaDate}</span>
                 <span>•</span>
                 <span>🕒 ${g.fechaTime}</span>
@@ -2951,57 +3062,66 @@ function renderEntregas() {
           </div>
         </div>
 
-        <!-- Botones de Acción de Entregas (3 Opciones Claras) -->
+        <!-- Botones de Acción de Entregas (Flujo Simplificado de 3 Estados - Req 2.2) -->
         <div class="pt-3 border-t border-slate-800 flex flex-col gap-2">
           
-          <div class="flex items-center gap-2">
-            <!-- Acción 1: Realizado vs Producción -->
-            ${!isRealizado ? `
-              <button class="btn-entregas-action-realizado flex-1 py-2 px-3 rounded-xl font-bold text-xs bg-cyan-600 hover:bg-cyan-500 text-white transition-all shadow-sm cursor-pointer" data-card-key="${encodeURIComponent(g.key)}" title="Marcar completado en producción">
-                🥖 Marcar Realizado
-              </button>
-            ` : `
-              <button class="btn-entregas-action-revert-prod flex-1 py-2 px-3 rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer" data-card-key="${encodeURIComponent(g.key)}" title="Devolver a la pantalla de Producción TV">
-                ↩️ A Producción TV
-              </button>
-            `}
-
-            <!-- Acción 2: Modalidad Delivery vs Retiro -->
-            ${!isDelivery ? `
-              <button class="btn-entregas-action-delivery px-3 py-2 rounded-xl font-bold text-xs bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 transition-all cursor-pointer" data-card-key="${encodeURIComponent(g.key)}" title="Cambiar a Delivery y gestionar en Deliverys">
-                🛵 A Delivery
-              </button>
-            ` : `
-              <button class="btn-entregas-action-pickup px-3 py-2 rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all cursor-pointer" data-card-key="${encodeURIComponent(g.key)}" title="Cambiar a Retiro en Tienda">
-                🏪 A Retiro
-              </button>
-            `}
-          </div>
-
-          <!-- Acción 3: Listo para Entregar / Despachado -->
           ${isAllDelivered ? `
             <div class="flex items-center justify-between gap-3 pt-1">
               <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5 py-1">
                 <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 Despachado / Entregado
               </span>
-              <button class="btn-entregas-action-revert-entregar py-2 px-3.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-800/90 hover:bg-slate-700 border border-slate-700/80 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95" data-card-key="${encodeURIComponent(g.key)}">
+              <button class="btn-entregas-action-revert-entregar py-2 px-3.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-800/90 hover:bg-slate-700 border border-slate-700/80 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Revertir entrega y volver a colocar como fabricado">
                 <span>↩️ Revertir Despacho</span>
               </button>
             </div>
+          ` : (isRealizado ? `
+            <div class="flex items-center gap-2">
+              <button class="btn-entregas-action-revert-prod py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer flex items-center justify-center gap-1.5 border border-slate-700" data-card-key="${encodeURIComponent(g.key)}" title="Devolver a la pantalla de Producción TV">
+                <span>↩️ A Producción TV</span>
+              </button>
+              <button class="btn-entregas-action-entregar flex-1 py-2.5 px-4 rounded-xl text-xs font-black text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:brightness-110 shadow-md shadow-emerald-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Marcar como entregado / despachado">
+                <span>📦 Listo para Entregar</span>
+              </button>
+            </div>
           ` : `
-            <button class="btn-entregas-action-entregar w-full py-3 px-4 rounded-2xl text-sm font-black text-slate-950 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:brightness-110 shadow-lg shadow-emerald-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95" data-card-key="${encodeURIComponent(g.key)}">
-              <svg class="w-5 h-5 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
-              <span>Listo para Entregar / Despachado</span>
-            </button>
-          `}
+            <!-- Pedido En Producción: Opciones Operativas (Req 2.2) -->
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <!-- Regla Especial: Retirar de Producción / Devolver a Pendientes -->
+                <button class="btn-entregas-action-revert-pendientes flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-white border border-rose-500/30 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Retirar de Producción TV y devolver a bandeja de Pendientes">
+                  <span>↩️ Devolver a Pendientes</span>
+                </button>
+
+                <!-- Marcar como Fabricado / Listo Despacho -->
+                <button class="btn-entregas-action-realizado flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-cyan-600 hover:bg-cyan-500 text-white transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5 active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Marcar completado en producción (fabricado)">
+                  <span>🥖 Marcar Fabricado</span>
+                </button>
+              </div>
+
+              <!-- Listo para Entregar directo -->
+              <button class="btn-entregas-action-entregar w-full py-2.5 px-4 rounded-xl text-xs font-black text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:brightness-110 shadow-md shadow-emerald-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95" data-card-key="${encodeURIComponent(g.key)}" title="Marcar directamente como entregado / despachado">
+                <span>📦 Listo para Entregar</span>
+              </button>
+            </div>
+          `)}
 
         </div>
 
       </div>`;
   }).join('');
 
-  // Event listeners para las 3 acciones en Entregas
+  // Event listeners para las acciones en Entregas (Req 2.2)
+  container.querySelectorAll('.btn-entregas-action-revert-pendientes').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
+      if (groups[cardKey]) {
+        const rows = groups[cardKey].items.map(i => i.rowIndex);
+        retireFromProduction(rows, groups[cardKey].cliente);
+      }
+    });
+  });
+
   container.querySelectorAll('.btn-entregas-action-realizado').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
@@ -3022,22 +3142,22 @@ function renderEntregas() {
     });
   });
 
-  container.querySelectorAll('.btn-entregas-action-delivery').forEach(btn => {
+  container.querySelectorAll('.btn-entregas-action-entregar').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
       if (groups[cardKey]) {
         const rows = groups[cardKey].items.map(i => i.rowIndex);
-        sendToDelivery(rows, groups[cardKey].cliente);
+        updateDeliveryStatus(rows, 'ENTREGADO', groups[cardKey].cliente);
       }
     });
   });
 
-  container.querySelectorAll('.btn-entregas-action-pickup').forEach(btn => {
+  container.querySelectorAll('.btn-entregas-action-revert-entregar').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const cardKey = decodeURIComponent(e.currentTarget.dataset.cardKey);
       if (groups[cardKey]) {
         const rows = groups[cardKey].items.map(i => i.rowIndex);
-        sendToPickup(rows, groups[cardKey].cliente);
+        markAsRealizado(rows, groups[cardKey].cliente);
       }
     });
   });
@@ -3569,9 +3689,15 @@ function bindDeliveryCardEvents(groups) {
         if (!meta[idx]) meta[idx] = { costo: groups[cardKey].costoDelivery, liquidado: groups[cardKey].liquidado };
         meta[idx].repartidor = newDriver;
       });
+      meta[cardKey] = {
+        costo: groups[cardKey].costoDelivery,
+        liquidado: groups[cardKey].liquidado,
+        repartidor: newDriver
+      };
       groups[cardKey].items.forEach(i => i.repartidor = newDriver);
       groups[cardKey].repartidor = newDriver;
 
+      state.deliveriesMeta = meta;
       saveLocalDeliveriesMeta(meta);
       saveLocalOrders();
 
@@ -3620,7 +3746,13 @@ function bindDeliveryCardEvents(groups) {
         if (!meta[idx]) meta[idx] = { repartidor: groups[cardKey].repartidor, liquidado: groups[cardKey].liquidado };
         meta[idx].costo = newCost;
       });
+      meta[cardKey] = {
+        repartidor: groups[cardKey].repartidor,
+        liquidado: groups[cardKey].liquidado,
+        costo: newCost
+      };
       groups[cardKey].items.forEach(i => i.costo_delivery = newCost);
+      state.deliveriesMeta = meta;
       saveLocalDeliveriesMeta(meta);
 
       updateDeliveryTotalsOnly(Object.values(groups));
@@ -3663,9 +3795,21 @@ function bindDeliveryCardEvents(groups) {
         if (!meta[idx]) meta[idx] = { repartidor: groups[cardKey].repartidor, costo: groups[cardKey].costoDelivery };
         meta[idx].liquidado = newPaid;
       });
+      meta[cardKey] = {
+        repartidor: groups[cardKey].repartidor,
+        costo: groups[cardKey].costoDelivery,
+        liquidado: newPaid
+      };
+
+      state.orders.forEach(o => {
+        if (rows.includes(o.rowIndex)) {
+          o.liquidado = newPaid;
+        }
+      });
       groups[cardKey].items.forEach(i => i.liquidado = newPaid);
       groups[cardKey].liquidado = newPaid;
 
+      state.deliveriesMeta = meta;
       saveLocalDeliveriesMeta(meta);
       saveLocalOrders();
 
@@ -3772,17 +3916,21 @@ function liquidarJornadaRepartidor(driverName, marcarLiquidado = true) {
 
   state.orders.forEach(o => {
     if (isDeliveryOrder(o)) {
-      const m = meta[o.rowIndex] || {};
+      const rawFecha = o.fecha2 || o.fecha1 || 'SinFecha';
+      const cardKey = `${o.cliente}___${rawFecha}`;
+      const m = meta[o.rowIndex] || meta[cardKey] || {};
       const currentDriver = m.repartidor || o.repartidor || '';
       if (currentDriver.trim() === driverName.trim()) {
         m.liquidado = marcarLiquidado;
         meta[o.rowIndex] = m;
+        meta[cardKey] = m;
         o.liquidado = marcarLiquidado;
         affectedRowIndices.push(o.rowIndex);
       }
     }
   });
 
+  state.deliveriesMeta = meta;
   saveLocalDeliveriesMeta(meta);
   saveLocalOrders();
 
