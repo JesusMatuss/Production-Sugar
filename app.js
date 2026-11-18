@@ -2507,11 +2507,11 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
           <!-- 2. BLOQUE DERECHO: CANTIDAD NETA (ARRIBA) + CONTROLES (ABAJO) - CERO SUPERPOSICIÓN (Req 2) -->
           <div class="counter-block-right flex flex-col items-end justify-center gap-1.5 shrink-0 pl-2.5">
             <!-- Cantidad exacta neta (Unidades y Paquetes) -->
-            <div class="flex items-baseline gap-1 font-mono text-right whitespace-nowrap">
-              <span class="item-units-text text-base sm:text-lg font-black font-mono">
-                ${it.netUnidades} <span class="text-xs font-bold item-units-label">un</span>
+            <div class="flex items-baseline gap-1.5 font-mono text-right whitespace-nowrap">
+              <span class="item-units-text text-xl sm:text-2xl font-black font-mono tracking-tight">
+                ${it.netUnidades} <span class="text-xs sm:text-sm font-bold item-units-label">un</span>
               </span>
-              <span class="item-packs-text text-xs font-bold font-mono">(${it.netPaquetes} pq)</span>
+              <span class="item-packs-text text-xs sm:text-sm font-bold font-mono">(${it.netPaquetes} pq)</span>
             </div>
 
             <!-- Controles compactos de ajuste (− / input / + / ↺) -->
@@ -2566,9 +2566,9 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
           </div>
 
           <!-- Derecha: Pastilla de total de alto contraste con texto blanco puro forzado (Req 2) -->
-          <div class="card-total-pill badge-keep-white px-3 py-1 rounded-xl flex items-baseline gap-1.5 font-mono shrink-0 shadow-md" style="background-color: #1e3a8a !important; color: #ffffff !important; border: 1.5px solid #3b82f6 !important;">
-            <span class="pill-units text-sm sm:text-base font-black text-white" style="color: #ffffff !important; font-weight: 900 !important;">${topGroup.totalNetUnidades} <span class="pill-units-label text-[11px] font-bold text-white" style="color: #ffffff !important; font-weight: 800 !important;">un</span></span>
-            <span class="pill-divider text-[11px] font-bold text-white" style="color: #ffffff !important;">/</span>
+          <div class="card-total-pill badge-keep-white px-3.5 py-1.5 rounded-xl flex items-baseline gap-1.5 font-mono shrink-0 shadow-md" style="background-color: #1e3a8a !important; color: #ffffff !important; border: 1.5px solid #3b82f6 !important;">
+            <span class="pill-units text-base sm:text-lg font-black text-white" style="color: #ffffff !important; font-weight: 900 !important;">${topGroup.totalNetUnidades} <span class="pill-units-label text-xs font-bold text-white" style="color: #ffffff !important; font-weight: 800 !important;">un</span></span>
+            <span class="pill-divider text-xs font-bold text-white" style="color: #ffffff !important;">/</span>
             <span class="pill-packs text-xs sm:text-sm font-bold text-white" style="color: #ffffff !important; font-weight: 800 !important;">${topGroup.totalNetPaquetes} pq</span>
           </div>
         </div>

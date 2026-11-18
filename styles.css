@@ -1170,6 +1170,24 @@ html.dark .text-slate-300,
   line-height: 1 !important;
 }
 
+/* Colores y tamaño prominente de unidades y paquetes */
+.item-units-text {
+  font-size: 1.35rem !important;
+  line-height: 1.1 !important;
+  font-weight: 900 !important;
+}
+
+@media (min-width: 640px) {
+  .item-units-text {
+    font-size: 1.55rem !important;
+  }
+}
+
+.item-units-label {
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+}
+
 /* Colores de unidades y paquetes en Modo Oscuro */
 html.dark .item-units-text,
 html.dark .item-units-text *,
