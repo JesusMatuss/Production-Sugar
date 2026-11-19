@@ -1032,18 +1032,28 @@ html:not(.dark) .input-pq-discount:focus {
   box-shadow: 0 0 0 2px rgba(180, 101, 40, 0.2) !important;
 }
 
-.input-pq-discount.has-discount,
-.input-pq-discount[value]:not([value="0"]) {
+.input-pq-discount.has-discount {
   color: #FB7185 !important;
   border-color: #E11D48 !important;
   background-color: rgba(159, 18, 57, 0.25) !important;
 }
 
-html:not(.dark) .input-pq-discount.has-discount,
-html:not(.dark) .input-pq-discount[value]:not([value="0"]) {
+.input-pq-discount.has-extra {
+  color: #4ADE80 !important;
+  border-color: #16A34A !important;
+  background-color: rgba(22, 101, 52, 0.25) !important;
+}
+
+html:not(.dark) .input-pq-discount.has-discount {
   color: #9F1239 !important;
   border-color: #E11D48 !important;
   background-color: #FFE4E6 !important;
+}
+
+html:not(.dark) .input-pq-discount.has-extra {
+  color: #166534 !important;
+  border-color: #16A34A !important;
+  background-color: #DCFCE7 !important;
 }
 
 /* ============================================================== */
@@ -1526,5 +1536,90 @@ html:not(.dark) #btn-produccion-terminada {
   color: #FFFFFF !important;
   box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25) !important;
 }
+
+/* ============================================================== */
+/* CONTROLES DE UNIDADES (+ / -) EN EL BLOQUE DE RUEDAS (TV & WEB)*/
+/* ============================================================== */
+.wheel-unit-control {
+  background: rgba(2, 6, 23, 0.85);
+  border: 1px solid rgba(51, 65, 85, 0.8);
+}
+
+.wheel-btn-minus,
+.wheel-btn-plus {
+  background: #1e293b;
+  color: #f1f5f9;
+  border: 1px solid #334155;
+  transition: all 0.15s ease;
+}
+
+.wheel-btn-minus:hover {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #ef4444 !important;
+}
+
+.wheel-btn-plus:hover {
+  background: #16a34a !important;
+  color: #ffffff !important;
+  border-color: #22c55e !important;
+}
+
+.wheel-btn-reset {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.wheel-btn-reset:hover {
+  background: #f59e0b;
+  color: #0f172a;
+}
+
+/* Modo Claro: Controles de Unidades de Ruedas */
+html:not(.dark) .wheel-unit-control {
+  background: #FFFFFF !important;
+  border: 1.5px solid #D6C7B2 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+html:not(.dark) .wheel-unit-control .text-white {
+  color: #1E293B !important;
+}
+
+html:not(.dark) .wheel-unit-control span.text-slate-400 {
+  color: #786551 !important;
+}
+
+html:not(.dark) .wheel-btn-minus,
+html:not(.dark) .wheel-btn-plus {
+  background: #F2ECE1 !important;
+  color: #2B1E16 !important;
+  border: 1px solid #D6C7B2 !important;
+}
+
+html:not(.dark) .wheel-btn-minus:hover {
+  background: #DC2626 !important;
+  color: #FFFFFF !important;
+  border-color: #DC2626 !important;
+}
+
+html:not(.dark) .wheel-btn-plus:hover {
+  background: #16A34A !important;
+  color: #FFFFFF !important;
+  border-color: #16A34A !important;
+}
+
+html:not(.dark) .wheel-btn-reset {
+  background: #FEF3C7 !important;
+  color: #B45309 !important;
+  border: 1px solid #FCD34D !important;
+}
+
+html:not(.dark) .wheel-btn-reset:hover {
+  background: #F59E0B !important;
+  color: #FFFFFF !important;
+}
+
 
 

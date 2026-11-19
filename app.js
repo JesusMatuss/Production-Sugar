@@ -31,6 +31,7 @@ const state = {
   filterStatusDeliverys: 'ALL',
   showSettlementPanel: false,
   productionDiscounts: {}, // { [discountKey]: paquetesDescontados }
+  wheelAdjustments: {}, // { [wheelKey]: unidadesAjustadas (+/-) }
   modalCategoryFilter: 'ALL',
   currentProductosConsolidados: {},
   currentTotalPanes: 0,
@@ -115,20 +116,31 @@ function calcularRuedasDesdeUnidades(totalUnidades, tamanoRueda = 36) {
     return { cantidad: 0, unidades: 0 };
   }
 
-  const cociente = total / tamanoRueda;
-  const entero = Math.floor(cociente);
-  const decimal = cociente - entero;
+  const tamano = Number(tamanoRueda) || 36;
+  const entero = Math.floor(total / tamano);
+  const resto = total - (entero * tamano);
+  const medioCorte = tamano / 2;
 
-  if (decimal > 0.5) {
+  if (resto === 0) {
+    return {
+      cantidad: entero,
+      unidades: 0
+    };
+  } else if (resto >= medioCorte) {
+    // Si la fracción es igual o mayor a media rueda (ej: 18 o más sobrantes de 36),
+    // es más eficiente en planta picar 1 rueda completa adicional en la picadora y descontar (-)
+    // las unidades sobrantes, en vez de cortar tantas unidades a mano con cuchillo (+).
+    // Ejemplo: 54 un (1 rueda + 18 un) -> 2 ruedas - 18 un.
     const cantidad = entero + 1;
-    const unidades = -((1 - decimal) * tamanoRueda);
+    const unidades = -(tamano - resto);
     return {
       cantidad,
       unidades: Math.round(unidades * 100) / 100
     };
   } else {
+    // Si son menos de media rueda (ej: 1 a 17 sobrantes de 36), se cortan a mano (+)
     const cantidad = entero;
-    const unidades = decimal * tamanoRueda;
+    const unidades = resto;
     return {
       cantidad,
       unidades: Math.round(unidades * 100) / 100
@@ -285,7 +297,12 @@ function getTipoMolde(order) {
     // PP (Pequeña Papa Sin Molde)
     return 'SIN_MOLDE';
   }
-  if (prod.includes('perro') || prod.includes('deli') || prod.includes('pepito') || prod.includes('jumbo')) {
+  if (
+    prod.includes('perro') || prod.includes('deli') || prod.includes('pepito') || prod.includes('jumbo') ||
+    prod.includes('sandw') || prod.includes('sanduch') || prod.includes('sandiw') || prod.includes('bimbo') ||
+    pres.includes('perro') || pres.includes('deli') || pres.includes('pepito') || pres.includes('jumbo') ||
+    pres.includes('sandw') || pres.includes('sanduch') || pres.includes('sandiw') || pres.includes('bimbo')
+  ) {
     return 'ENROLLADOS';
   }
   return 'GENERAL';
@@ -294,10 +311,19 @@ function getTipoMolde(order) {
 // Sub-tipo para el bloque de ruedas: 'hamburguesa' | 'enrollado' | 'molde'
 function getSubtipoRuedas(order) {
   const prod = normalizarTexto(order.producto);
+  const pres = normalizarTexto(order.presentacion || order.especificacion);
   // Las hamburguesas trenzadas se pasan por la máquina que se enrolla
-  if (prod.includes('trenzad')) return 'enrollado';
-  if (prod.includes('hamburguesa')) return 'hamburguesa';
-  if (prod.includes('perro') || prod.includes('deli') || prod.includes('pepito') || prod.includes('jumbo')) return 'enrollado';
+  if (prod.includes('trenzad') || pres.includes('trenzad')) return 'enrollado';
+  if (prod.includes('hamburguesa') || pres.includes('hamburguesa')) return 'hamburguesa';
+  // Perros, delis, pepitos, jumbos y panes de sandwich salen en las ruedas de enrollados
+  if (
+    prod.includes('perro') || prod.includes('deli') || prod.includes('pepito') || prod.includes('jumbo') ||
+    prod.includes('sandw') || prod.includes('sanduch') || prod.includes('sandiw') || prod.includes('bimbo') ||
+    pres.includes('perro') || pres.includes('deli') || pres.includes('pepito') || pres.includes('jumbo') ||
+    pres.includes('sandw') || pres.includes('sanduch') || pres.includes('sandiw') || pres.includes('bimbo')
+  ) {
+    return 'enrollado';
+  }
   return 'molde';
 }
 
@@ -464,7 +490,8 @@ const MOCK_ORDERS = [
   { rowIndex: 12, cliente: "La Esquina HotDog", producto: "Perro Comercial", presentacion: "Pesado", peso_gr: 50, topping: "Sin Topping", paquetes: 3, monto: 12.00, telefono: "+5804121112233", fecha1: "15/11/2026 11:45", fecha2: "2026-11-15 11:45", entrega: "Retiro", estado: "PENDIENTE" },
   { rowIndex: 13, cliente: "Eventos & Fiestas", producto: "Perro Mini", presentacion: "Estándar", peso_gr: 50, topping: "Sin Topping", paquetes: 4, monto: 16.00, telefono: "+5804143334455", fecha1: "15/11/2026 11:45", fecha2: "2026-11-15 11:45", entrega: "Retiro", estado: "PENDIENTE" },
   { rowIndex: 14, cliente: "Monster Dog VIP", producto: "Perro Jumbo", presentacion: "22CM", peso_gr: 80, topping: "Ajonjolí", paquetes: 3, monto: 25.00, telefono: "+5804246667788", fecha1: "15/11/2026 12:00", fecha2: "2026-11-15 12:00", entrega: "Despacho", estado: "EN_PRODUCCION" },
-  { rowIndex: 15, cliente: "Sandwich Deli Bar", producto: "Deli", presentacion: "Largo", peso_gr: 80, topping: "Orégano", paquetes: 6, monto: 18.00, telefono: "+5804167778899", fecha1: "15/11/2026 12:00", fecha2: "2026-11-15 12:00", entrega: "Despacho", estado: "EN_PRODUCCION" }
+  { rowIndex: 15, cliente: "Sandwich Deli Bar", producto: "Deli", presentacion: "Largo", peso_gr: 80, topping: "Orégano", paquetes: 6, monto: 18.00, telefono: "+5804167778899", fecha1: "15/11/2026 12:00", fecha2: "2026-11-15 12:00", entrega: "Despacho", estado: "EN_PRODUCCION" },
+  { rowIndex: 16, cliente: "Club Sandwich House", producto: "Pan de Sandwich", presentacion: "Rebanado", peso_gr: 100, topping: "Sin Topping", paquetes: 18, monto: 36.00, telefono: "+5804149991122", fecha1: "15/11/2026 12:15", fecha2: "2026-11-15 12:15", entrega: "Despacho", estado: "EN_PRODUCCION" }
 ];
 
 // Determinar si una orden corresponde a la modalidad Delivery
@@ -549,6 +576,7 @@ function initDeliveryState() {
   state.localRealizados = getLocalRealizadosIndices();
   state.localDeliveryIndices = getLocalDeliveryIndices();
   state.productionDiscounts = getLocalProductionDiscounts();
+  state.wheelAdjustments = getLocalWheelAdjustments();
 }
 
 // Cargar catálogo de productos
@@ -672,6 +700,58 @@ function saveLocalDeliveryDrivers(driversArr) {
   }
 }
 
+// --- PERSISTENCIA Y AJUSTE DE UNIDADES EN BLOQUE DE RUEDAS ---
+function getLocalWheelAdjustments() {
+  try {
+    const raw = localStorage.getItem('sugar_wheel_adjustments');
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveLocalWheelAdjustments(adj) {
+  try {
+    localStorage.setItem('sugar_wheel_adjustments', JSON.stringify(adj));
+  } catch (e) {
+    console.error('Error al guardar ajustes de ruedas:', e);
+  }
+}
+
+// Modificar unidades manuales en el bloque de ruedas (+ muestras o - sobrantes)
+function adjustRuedaUnits(category, ruedaKey, delta) {
+  if (!ruedaKey) return;
+  const dough = state.activeDough || 'hamburguesa';
+  const adjKey = `${dough}_${category}_${ruedaKey}`;
+  if (!state.wheelAdjustments) state.wheelAdjustments = {};
+
+  if (delta === 'reset') {
+    delete state.wheelAdjustments[adjKey];
+    saveLocalWheelAdjustments(state.wheelAdjustments);
+    renderProduccion();
+    showToastNotification('↺ Ajuste de unidades restablecido.');
+    return;
+  }
+
+  const current = Number(state.wheelAdjustments[adjKey]) || 0;
+  const next = current + Number(delta);
+  if (next === 0) {
+    delete state.wheelAdjustments[adjKey];
+  } else {
+    state.wheelAdjustments[adjKey] = next;
+  }
+  saveLocalWheelAdjustments(state.wheelAdjustments);
+  renderProduccion();
+
+  const labelRueda = ruedaKey.replace(/_/g, ' ');
+  if (delta > 0) {
+    showToastNotification(`➕ Añadida muestra: +${delta} un a ${labelRueda}`);
+  } else {
+    showToastNotification(`➖ Descontado pan sobrante: ${delta} un a ${labelRueda}`);
+  }
+}
+window.adjustRuedaUnits = adjustRuedaUnits;
+
 // --- PERSISTENCIA Y AJUSTE DE DESCUENTO DE PAQUETES EN PRODUCCIÓN ---
 function getLocalProductionDiscounts() {
   try {
@@ -688,17 +768,26 @@ function saveLocalProductionDiscounts(discounts) {
   } catch (e) {}
 }
 
-function adjustProductDiscount(discountKey, deltaPackages) {
+function adjustProductDiscount(discountKey, deltaPackages, paquetesOriginal = null) {
   if (!discountKey) return;
-  const current = state.productionDiscounts[discountKey] || 0;
-  const next = Math.max(0, current + deltaPackages);
-  if (next <= 0) {
+  const current = Number(state.productionDiscounts[discountKey]) || 0;
+  let next = current + deltaPackages;
+  if (paquetesOriginal !== null && (paquetesOriginal + next) < 0) {
+    next = -paquetesOriginal;
+  }
+  if (next === 0) {
     delete state.productionDiscounts[discountKey];
   } else {
     state.productionDiscounts[discountKey] = next;
   }
   saveLocalProductionDiscounts(state.productionDiscounts);
   renderProduccion();
+
+  if (deltaPackages > 0) {
+    showToastNotification(`➕ Sumado +${deltaPackages} paquete(s) a la producción`);
+  } else {
+    showToastNotification(`➖ Restado ${Math.abs(deltaPackages)} paquete(s) de la producción`);
+  }
 }
 
 function resetProductDiscount(discountKey) {
@@ -2339,15 +2428,17 @@ function renderProduccion() {
     topGroup.totalNetUnidades = 0;
 
     Object.values(topGroup.items).forEach(it => {
-      // Paquetes descontados por no retiro (guardados en state.productionDiscounts)
-      const rawDiscount = state.productionDiscounts[it.discountKey] || 0;
-      const descPaq = Math.min(it.paquetesOriginal, Math.max(0, rawDiscount));
-      if (descPaq > 0) activeDiscountsCount++;
+      // Ajuste de paquetes (+ extras sumados / - descontados por no retiro)
+      const rawAdj = Number(state.productionDiscounts[it.discountKey]) || 0;
+      const netPaquetes = Math.max(0, it.paquetesOriginal + rawAdj);
+      if (rawAdj !== 0) activeDiscountsCount++;
 
-      it.descPaq = descPaq;
-      it.descUn = descPaq * it.uPorPaq;
-      it.netPaquetes = Math.max(0, it.paquetesOriginal - descPaq);
-      it.netUnidades = it.netPaquetes * it.uPorPaq;
+      it.ajustePaq = rawAdj;
+      it.ajusteUn = rawAdj * it.uPorPaq;
+      it.descPaq = rawAdj < 0 ? Math.abs(rawAdj) : 0;
+      it.extraPaq = rawAdj > 0 ? rawAdj : 0;
+      it.netPaquetes = netPaquetes;
+      it.netUnidades = netPaquetes * it.uPorPaq;
       it.netGramos = it.netUnidades * it.peso;
 
       // Subtotales de cada Topping
@@ -2367,18 +2458,25 @@ function renderProduccion() {
             ruedasHamburguesas[ruedaKey] = {
               peso: it.peso,
               tipoMolde: it.tipoMolde,
+              unidadesBase: 0,
               unidadesTotales: 0
             };
           }
-          ruedasHamburguesas[ruedaKey].unidadesTotales += it.netUnidades;
+          ruedasHamburguesas[ruedaKey].unidadesBase += it.netUnidades;
         } else if (it.subtipo === 'enrollado') {
           const normProd = normalizarTexto(`${it.producto || ''} ${it.presentacion || ''}`);
           let varianteKey = '';
           let displayLabel = '';
           let badgeClass = '';
 
+          // 0. Panes de Sandwich / Bimbo / Sanduche en ruedas de enrollados
+          if (normProd.includes('sandw') || normProd.includes('sanduch') || normProd.includes('sandiw') || normProd.includes('bimbo')) {
+            varianteKey = 'SANDWICH';
+            displayLabel = '🥪 Sandwich';
+            badgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+          }
           // 1. Separar perros de 50g de los perros mini de 50g
-          if (it.peso === 50) {
+          else if (it.peso === 50) {
             if (normProd.includes('mini')) {
               varianteKey = 'MINI_PERRO';
               displayLabel = '🌭 Perro Mini';
@@ -2433,15 +2531,40 @@ function renderProduccion() {
               varianteKey: varianteKey,
               displayLabel: displayLabel,
               badgeClass: badgeClass,
+              unidadesBase: 0,
               unidadesTotales: 0,
               tipos: new Set()
             };
           }
-          ruedasEnrollados[ruedaKey].unidadesTotales += it.netUnidades;
+          ruedasEnrollados[ruedaKey].unidadesBase += it.netUnidades;
           it.tipos.forEach(t => ruedasEnrollados[ruedaKey].tipos.add(t));
         }
       }
     });
+  });
+
+  // Aplicar ajustes manuales de ruedas (+ muestras o - sobrantes) por cada gramaje/formato
+  const wheelAdjs = state.wheelAdjustments || {};
+  const currentDough = state.activeDough || 'hamburguesa';
+
+  Object.keys(ruedasHamburguesas).forEach(k => {
+    const adjKey = `${currentDough}_hb_${k}`;
+    const manualAdj = Number(wheelAdjs[adjKey]) || 0;
+    const base = ruedasHamburguesas[k].unidadesBase || 0;
+    ruedasHamburguesas[k].manualAdj = manualAdj;
+    ruedasHamburguesas[k].unidadesTotales = Math.max(0, base + manualAdj);
+    ruedasHamburguesas[k].category = 'hb';
+    ruedasHamburguesas[k].ruedaKey = k;
+  });
+
+  Object.keys(ruedasEnrollados).forEach(k => {
+    const adjKey = `${currentDough}_en_${k}`;
+    const manualAdj = Number(wheelAdjs[adjKey]) || 0;
+    const base = ruedasEnrollados[k].unidadesBase || 0;
+    ruedasEnrollados[k].manualAdj = manualAdj;
+    ruedasEnrollados[k].unidadesTotales = Math.max(0, base + manualAdj);
+    ruedasEnrollados[k].category = 'en';
+    ruedasEnrollados[k].ruedaKey = k;
   });
 
   // 5. Actualizar métricas del header en TV
@@ -2691,11 +2814,11 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
                 ` : ''}
               </div>
 
-              <!-- Indicador de descuento si existe -->
-              ${it.descPaq > 0 ? `
+              <!-- Indicador de ajuste (+ suma / - resta) si existe -->
+              ${it.ajustePaq !== 0 ? `
                 <div class="mt-0.5">
-                  <span class="px-1.5 py-0.2 rounded text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/30 inline-flex items-center gap-0.5" title="Paquetes restados por no retiro">
-                    <span>📉</span> -${it.descPaq}pq (${it.descUn}un)
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-black ${it.ajustePaq > 0 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'} inline-flex items-center gap-0.5" title="${it.ajustePaq > 0 ? 'Paquetes sumados a producción' : 'Paquetes restados por no retiro'}">
+                    <span>${it.ajustePaq > 0 ? '📈' : '📉'}</span> ${it.ajustePaq > 0 ? `+${it.ajustePaq}pq (+${it.ajusteUn}un)` : `${it.ajustePaq}pq (${it.ajusteUn}un)`}
                   </span>
                 </div>
               ` : ''}
@@ -2717,33 +2840,32 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
               <button type="button" 
                 class="btn-pq-minus w-5 h-5 rounded flex items-center justify-center font-black text-xs transition-all disabled:opacity-25 cursor-pointer active:scale-95" 
                 data-key="${escapeHtml(it.discountKey)}" 
-                title="Restar 1 paquete de producción"
+                data-orig="${it.paquetesOriginal}" 
+                title="Restar 1 paquete (−)"
                 ${it.netPaquetes <= 0 ? 'disabled' : ''}>
                 −
               </button>
 
-              <input type="number" 
-                min="0" 
-                max="${it.paquetesOriginal}" 
-                value="${it.descPaq}" 
-                class="input-pq-discount w-7 text-center text-[11px] font-mono font-bold rounded py-0 focus:outline-none ${it.descPaq > 0 ? 'has-discount' : ''}" 
+              <input type="text" 
+                value="${it.ajustePaq > 0 ? '+' + it.ajustePaq : it.ajustePaq}" 
+                class="input-pq-discount w-8 text-center text-[11px] font-mono font-bold rounded py-0 focus:outline-none ${it.ajustePaq > 0 ? 'has-extra' : (it.ajustePaq < 0 ? 'has-discount' : '')}" 
                 data-key="${escapeHtml(it.discountKey)}" 
-                data-max="${it.paquetesOriginal}" 
-                title="Paquetes a descontar">
+                data-orig="${it.paquetesOriginal}" 
+                title="Ajuste de paquetes (+ sumar / − restar)">
 
               <button type="button" 
-                class="btn-pq-plus w-5 h-5 rounded flex items-center justify-center font-black text-xs transition-all disabled:opacity-25 cursor-pointer active:scale-95" 
+                class="btn-pq-plus w-5 h-5 rounded flex items-center justify-center font-black text-xs transition-all cursor-pointer active:scale-95" 
                 data-key="${escapeHtml(it.discountKey)}" 
-                title="Sumar 1 paquete (devolver al original)"
-                ${it.descPaq <= 0 ? 'disabled' : ''}>
+                data-orig="${it.paquetesOriginal}" 
+                title="Sumar 1 paquete (+)">
                 +
               </button>
 
-              ${it.descPaq > 0 ? `
+              ${it.ajustePaq !== 0 ? `
                 <button type="button" 
                   class="btn-pq-reset w-5 h-5 rounded text-[10px] font-bold border flex items-center justify-center cursor-pointer transition-all active:scale-95" 
                   data-key="${escapeHtml(it.discountKey)}" 
-                  title="Restablecer original (${it.paquetesOriginal} pq)">
+                  title="Restablecer a pedidos originales (${it.paquetesOriginal} pq)">
                   ↺
                 </button>
               ` : ''}
@@ -2783,7 +2905,7 @@ function renderModalConsolidadoProductos(toppingsConsolidados, totalPanesUnidade
   bindModalDiscountEvents();
 }
 
-// Vincular eventos a los controles de descuento en el modal
+// Vincular eventos a los controles de ajuste en el modal
 function bindModalDiscountEvents() {
   const container = document.getElementById('modal-products-grid');
   if (!container) return;
@@ -2793,16 +2915,18 @@ function bindModalDiscountEvents() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const key = e.currentTarget.dataset.key;
-      adjustProductDiscount(key, 1);
+      const orig = parseInt(e.currentTarget.dataset.orig) || 0;
+      adjustProductDiscount(key, -1, orig);
     });
   });
 
-  // Botón Sumar / Devolver 1 paquete (+)
+  // Botón Sumar 1 paquete (+)
   container.querySelectorAll('.btn-pq-plus').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const key = e.currentTarget.dataset.key;
-      adjustProductDiscount(key, -1);
+      const orig = parseInt(e.currentTarget.dataset.orig) || 0;
+      adjustProductDiscount(key, 1, orig);
     });
   });
 
@@ -2815,18 +2939,19 @@ function bindModalDiscountEvents() {
     });
   });
 
-  // Input numérico directo
+  // Input directo (+ sumar o - restar)
   container.querySelectorAll('.input-pq-discount').forEach(input => {
     input.addEventListener('click', (e) => e.stopPropagation());
     
     const handleInput = (e) => {
       const key = e.target.dataset.key;
-      const maxPaq = parseInt(e.target.dataset.max) || 0;
-      let val = parseInt(e.target.value);
-      if (isNaN(val) || val < 0) val = 0;
-      if (val > maxPaq) val = maxPaq;
+      const orig = parseInt(e.target.dataset.orig) || 0;
+      const rawStr = String(e.target.value).trim().replace('+', '');
+      let val = parseInt(rawStr, 10);
+      if (isNaN(val)) val = 0;
+      if (orig + val < 0) val = -orig;
 
-      if (val <= 0) {
+      if (val === 0) {
         delete state.productionDiscounts[key];
       } else {
         state.productionDiscounts[key] = val;
@@ -2921,7 +3046,45 @@ function renderBloqueRuedas(ruedasHamburguesas, ruedasEnrollados) {
               ${badgeTrenzada}
               ${esRuedaMitad ? `<span class="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">1/2 Rueda (${tamanoRueda} un)</span>` : ''}
             </div>
-            <span class="text-xs text-slate-400 font-mono font-normal block mt-1">(${pesoRueda.toLocaleString()} g masa por corte)</span>
+            
+            <div class="flex items-center gap-2.5 mt-2 flex-wrap">
+              <span class="text-xs text-slate-400 font-mono font-normal">(${pesoRueda.toLocaleString()} g masa por corte)</span>
+              <span class="text-slate-600 hidden sm:inline">•</span>
+
+              <!-- Control interactivo de unidades (+ / -) con alto contraste -->
+              <div class="wheel-unit-control inline-flex items-center gap-1.5 px-2 py-1 rounded-xl shadow-sm">
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">Unidades:</span>
+                <button type="button" 
+                        onclick="adjustRuedaUnits('${item.category || 'hb'}', '${item.ruedaKey || k}', -1)" 
+                        title="Restar 1 unidad (sobró pan de más)" 
+                        class="wheel-btn-minus w-7 h-7 flex items-center justify-center rounded-lg font-black text-base active:scale-90 select-none cursor-pointer">
+                  −
+                </button>
+                <span class="font-mono font-black text-white text-base px-1.5 min-w-[2.2rem] text-center" title="Total unidades requeridas: ${item.unidadesTotales} un">
+                  ${item.unidadesTotales}
+                </span>
+                <button type="button" 
+                        onclick="adjustRuedaUnits('${item.category || 'hb'}', '${item.ruedaKey || k}', 1)" 
+                        title="Sumar 1 unidad (pan de muestra)" 
+                        class="wheel-btn-plus w-7 h-7 flex items-center justify-center rounded-lg font-black text-base active:scale-90 select-none cursor-pointer">
+                  +
+                </button>
+                ${item.manualAdj !== 0 ? `
+                  <button type="button" 
+                          onclick="adjustRuedaUnits('${item.category || 'hb'}', '${item.ruedaKey || k}', 'reset')" 
+                          title="Restablecer ajuste manual (Base pedidos: ${item.unidadesBase} un)" 
+                          class="wheel-btn-reset w-6 h-6 flex items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ml-0.5">
+                    ↺
+                  </button>
+                ` : ''}
+              </div>
+
+              ${item.manualAdj !== 0 ? `
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-md ${item.manualAdj > 0 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
+                  ${item.manualAdj > 0 ? `+${item.manualAdj} muestra` : `${item.manualAdj} sobrante`}
+                </span>
+              ` : ''}
+            </div>
           </td>
           <td class="py-4 px-4 text-center">
             <span class="text-4xl lg:text-5xl font-black text-amber-400 tv-display-num tracking-tight">${calc.cantidad}</span>
@@ -2975,9 +3138,8 @@ function copyToppingsHornero() {
   let totalEnrollados = 0;
 
   Object.values(enrolladosMap).forEach(it => {
-    const rawDiscount = state.productionDiscounts[it.discountKey] || 0;
-    const descPaq = Math.min(it.paquetesOriginal, Math.max(0, rawDiscount));
-    const netPaq = it.paquetesOriginal - descPaq;
+    const rawAdj = Number(state.productionDiscounts[it.discountKey]) || 0;
+    const netPaq = Math.max(0, it.paquetesOriginal + rawAdj);
     const netUn = netPaq * it.uPorPaq;
     if (netUn > 0) {
       enrolladosPorTopping[it.top] = (enrolladosPorTopping[it.top] || 0) + netUn;
