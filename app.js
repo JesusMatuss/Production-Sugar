@@ -279,8 +279,8 @@ function getTipoMasa(order) {
       cat.includes('jamon') || cat.includes('jamón') || 
       prodLower.includes('jamon') || prodLower.includes('jamón') || 
       presLower.includes('jamon') || presLower.includes('jamón') ||
-      (prodLower.includes('pan tradicional') && (presLower.includes('sin queso crema') || presLower.includes('queso crema') || parseFloat(order.peso_gr) >= 500)) ||
-      (prodLower.includes('pan con queso crema') && parseFloat(order.peso_gr) >= 500)) {
+      (prodLower.includes('pan tradicional') && (presLower.includes('sin queso crema') || presLower.includes('queso crema') || parseFloat(order.peso_gr) >= 380)) ||
+      (prodLower.includes('pan con queso crema') && parseFloat(order.peso_gr) >= 380)) {
     return 'jamon';
   }
 
@@ -478,7 +478,7 @@ function getUnidadesPorPaquete(order) {
   if (pNorm.includes('dulce') || pNorm.includes('coco') || pNorm.includes('arequipe') || pNorm.includes('chocolate') || pNorm.includes('guayaba')) return 6;
 
   // Sándwich Bimbo y Pan de Jamón: 1 unidad por paquete
-  if (pNorm.includes('bimbo') || pNorm.includes('sandwich') || pNorm.includes('jamon')) return 1;
+  if (pNorm.includes('bimbo') || pNorm.includes('sandwich') || pNorm.includes('jamon') || pNorm.includes('jamón')) return 1;
 
   // Fallback por defecto según peso
   if (pesoNum >= 110) return 8;
@@ -537,6 +537,45 @@ function getItemMonto(order) {
   }
 
   return 0;
+}
+
+// Obtener el peso de masa en gramos para la producción panadera
+// Para el Pan de Jamón: la masa pesa 400g (PAN-JAM-01), 500g (PAN-JAM-02) y 600g (PAN-JAM-03)
+function getPesoMasaGramos(order) {
+  if (!order) return 0;
+  const prod = normalizarTexto(order.producto);
+  const pres = normalizarTexto(order.presentacion || order.especificacion);
+  const cat = normalizarTexto(order.categoria);
+  const id = String(order.id || '').toUpperCase();
+  const rawPeso = parseFloat(order.peso_gr) || 0;
+
+  // Pan de Jamón por ID directo
+  if (id === 'PAN-JAM-01') return 400;
+  if (id === 'PAN-JAM-02') return 500;
+  if (id === 'PAN-JAM-03') return 600;
+
+  // Pan de Jamón por nombre o categoría
+  const esJamon = cat.includes('jamon') || prod.includes('jamon') || pres.includes('jamon');
+  if (esJamon) {
+    if (prod.includes('tradicional') || (rawPeso >= 350 && rawPeso <= 650)) return 400;
+    if (prod.includes('queso crema') && !prod.includes('premiun') && !prod.includes('premium')) return 500;
+    if (prod.includes('premiun') || prod.includes('premium') || rawPeso >= 900) return 600;
+    // Si viene con los pesos anteriores de 600g, 800g o 1000g de Google Sheets
+    if (Math.abs(rawPeso - 600) < 15) return 400;
+    if (Math.abs(rawPeso - 800) < 15) return 500;
+    if (Math.abs(rawPeso - 1000) < 15) return 600;
+    return 400;
+  }
+
+  // Por si llega como "Pan Tradicional" o "Pan con queso crema" sin la palabra jamón
+  if (prod.includes('pan tradicional') && (pres.includes('sin queso crema') || rawPeso === 600 || rawPeso === 400)) {
+    return 400;
+  }
+  if (prod.includes('pan con queso crema') && (rawPeso === 800 || rawPeso === 500)) {
+    return 500;
+  }
+
+  return rawPeso;
 }
 
 // --- DATOS DE EJEMPLO REALISTAS (PARA PRUEBA INMEDIATA SIN CONEXIÓN) ---
@@ -2250,7 +2289,7 @@ function openClearProductionModal() {
   let totalKg = 0;
   prodOrders.forEach(o => {
     const un = (parseFloat(o.paquetes) || 0) * getUnidadesPorPaquete(o);
-    totalKg += (un * (parseFloat(o.peso_gr) || 0)) / 1000;
+    totalKg += (un * getPesoMasaGramos(o)) / 1000;
   });
 
   const countEl = document.getElementById('clear-orders-count');
@@ -2373,7 +2412,7 @@ function renderProduccion() {
     const topping = (o.topping || 'Sin Topping').trim();
     const prod = (o.producto || '').trim();
     const pres = (o.presentacion || 'Estándar').trim();
-    const peso = parseFloat(o.peso_gr) || 0;
+    const peso = getPesoMasaGramos(o);
     const paq = parseFloat(o.paquetes) || 0;
     const uPorPaq = getUnidadesPorPaquete(o);
     const un = paq * uPorPaq;
@@ -3124,7 +3163,7 @@ function copyToppingsHornero() {
     if (tipoMolde === 'ENROLLADOS') {
       const top = (o.topping || 'Sin Topping').trim().toUpperCase();
       const prod = (o.producto || '').trim();
-      const peso = parseFloat(o.peso_gr) || 0;
+      const peso = getPesoMasaGramos(o);
       const paq = parseFloat(o.paquetes) || 0;
       const uPorPaq = getUnidadesPorPaquete(o);
       const discountKey = `${state.activeDough}:::${(o.topping || 'Sin Topping').trim()}:::${tipoMolde}:::${prod}:::${peso}`;
