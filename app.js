@@ -268,27 +268,59 @@ function getTipoMasa(order) {
   const prod = (order.producto || '').trim();
   const pres = (order.presentacion || order.especificacion || '').trim();
   const cat = (order.categoria || '').trim().toLowerCase();
+  const id = (order.id || '').trim().toLowerCase();
 
-  // 1. Si la categoría explícita es Pan de Papa
+  const prodLower = prod.toLowerCase();
+  const presLower = pres.toLowerCase();
+
+  // 1. Pan de Jamón (Prioridad alta para evitar que caiga en brioche o tradicional)
+  // Revisa ID del catálogo (PAN-JAM-01, 02, 03), categoría, nombre o presentación
+  if (id.startsWith('pan-jam') || 
+      cat.includes('jamon') || cat.includes('jamón') || 
+      prodLower.includes('jamon') || prodLower.includes('jamón') || 
+      presLower.includes('jamon') || presLower.includes('jamón') ||
+      (prodLower.includes('pan tradicional') && (presLower.includes('sin queso crema') || presLower.includes('queso crema') || parseFloat(order.peso_gr) >= 500)) ||
+      (prodLower.includes('pan con queso crema') && parseFloat(order.peso_gr) >= 500)) {
+    return 'jamon';
+  }
+
+  // Si tenemos acceso al catálogo cargado, verificar si coincide con un producto de la categoría 'Pan de Jamon'
+  if (state.catalog && state.catalog.length > 0) {
+    const pNorm = normalizarTexto(prod);
+    const presNorm = normalizarTexto(pres);
+    const pesoNum = parseFloat(order.peso_gr) || 0;
+    const matched = state.catalog.find(c => {
+      const cCat = (c.categoria || '').toLowerCase();
+      if (!cCat.includes('jamon') && !cCat.includes('jamón')) return false;
+      const cProd = normalizarTexto(c.producto);
+      const cPres = normalizarTexto(c.especificacion);
+      const cPeso = parseFloat(c.peso_gr) || 0;
+      return (cProd === pNorm || pNorm.includes(cProd) || cProd.includes(pNorm)) &&
+             (!pesoNum || Math.abs(cPeso - pesoNum) < 15);
+    });
+    if (matched) {
+      return 'jamon';
+    }
+  }
+
+  // 2. Si la categoría explícita es Pan de Papa
   if (cat.includes('papa')) {
     return 'papa';
   }
 
-  // 2. Si el nombre o presentación contiene explícitamente "papa"
-  const prodLower = prod.toLowerCase();
-  const presLower = pres.toLowerCase();
+  // 3. Si el nombre o presentación contiene explícitamente "papa"
   if (prodLower.includes('papa') || presLower.includes('papa')) {
     return 'papa';
   }
 
-  // 3. Regla de Sufijos para Hamburguesas / Masas de Papa: MP (Molde Papa), SP (Sésamo Papa), PP (Pan de Papa)
+  // 4. Regla de Sufijos para Hamburguesas / Masas de Papa: MP (Molde Papa), SP (Sésamo Papa), PP (Pan de Papa)
   // Evalúa si el nombre del producto o la presentación terminan en MP, SP o PP, o si aparecen como sufijo aislado
   const suffixPapaRegex = /(?:^|\s|[-_])(mp|sp|pp)(?:\s|[-_]|$)/i;
   if (suffixPapaRegex.test(prod) || suffixPapaRegex.test(pres)) {
     return 'papa';
   }
 
-  // 4. Pan Dulce
+  // 5. Pan Dulce
   if (cat.includes('dulce') || 
       prodLower.includes('dulce') || 
       prodLower.includes('coco') || 
@@ -296,11 +328,6 @@ function getTipoMasa(order) {
       prodLower.includes('chocolate') || 
       prodLower.includes('guayaba')) {
     return 'dulce';
-  }
-
-  // 5. Pan de Jamón
-  if (cat.includes('jamon') || cat.includes('jamón') || prodLower.includes('jamon') || prodLower.includes('jamón')) {
-    return 'jamon';
   }
 
   // 6. Pan Burrero (PC-EST-01 Perro Comercial E, PC-ESTT Perro Comercial E2, o económico)
