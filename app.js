@@ -83,6 +83,32 @@ const FORMULAS_BASE = {
       { nombre: 'Sal', base: 450, porcentaje: 1.00 },
       { nombre: 'Esencia de Vainilla', base: 450, porcentaje: 1.00 }
     ]
+  },
+  jamon: {
+    nombre: 'Pan de Jamón',
+    baseHarina: 1511.5,
+    ingredientes: [
+      { nombre: 'Harina de Trigo', base: 1511.5, porcentaje: 100 },
+      { nombre: 'Agua', base: 776.9, porcentaje: 51.4 },
+      { nombre: 'Azúcar', base: 45.3, porcentaje: 3.0 },
+      { nombre: 'Mantequilla', base: 27.2, porcentaje: 1.8 },
+      { nombre: 'Sal', base: 26.9, porcentaje: 1.78 },
+      { nombre: 'Levadura', base: 12.1, porcentaje: 0.8 }
+    ]
+  },
+  burrero: {
+    nombre: 'Pan Burrero Económico',
+    baseHarina: 45000,
+    ingredientes: [
+      { nombre: 'Harina de Trigo', base: 45000, porcentaje: 100 },
+      { nombre: 'Agua', base: 25600, porcentaje: 56.89 },
+      { nombre: 'Azúcar', base: 3600, porcentaje: 8.00 },
+      { nombre: 'Mantequilla / Manteca', base: 800, porcentaje: 1.78 },
+      { nombre: 'Sal', base: 540, porcentaje: 1.20 },
+      { nombre: 'Esencia', base: 400, porcentaje: 0.89 },
+      { nombre: 'Propinato de Calcio', base: 240, porcentaje: 0.53 },
+      { nombre: 'Levadura Fresca', base: 100, porcentaje: 0.22 }
+    ]
   }
 };
 
@@ -274,7 +300,21 @@ function getTipoMasa(order) {
     return 'dulce';
   }
 
-  // 5. Por defecto (Hamburguesa estándar, Perro, Deli, Sandwich/Bimbo) es masa Brioche
+  // 5. Pan de Jamón
+  if (cat.includes('jamon') || cat.includes('jamón') || prodLower.includes('jamon') || prodLower.includes('jamón')) {
+    return 'jamon';
+  }
+
+  // 6. Pan Burrero (PC-EST-01 Perro Comercial E, PC-ESTT Perro Comercial E2, o económico)
+  const idLower = (order.id || '').toLowerCase();
+  if (idLower === 'pc-est-01' || idLower === 'pc-estt' ||
+      prodLower.includes('burrero') ||
+      prodLower.includes('comercial e') ||
+      (prodLower.includes('perro') && (presLower.includes('economico') || presLower.includes('económico')))) {
+    return 'burrero';
+  }
+
+  // 7. Por defecto (Hamburguesa estándar, Perro estándar, Deli, Sandwich/Bimbo) es masa Brioche
   return 'brioche';
 }
 
@@ -1277,7 +1317,7 @@ function toggleAutoRotate() {
   if (state.isAutoRotate) {
     btn.classList.add('bg-amber-500/20', 'text-amber-300', 'border-amber-400');
     document.body.classList.add('tv-kiosk-mode');
-    const order = ['brioche', 'papa', 'dulce'];
+    const order = ['brioche', 'papa', 'dulce', 'burrero', 'jamon'];
     state.autoRotateInterval = setInterval(() => {
       const idx = order.indexOf(state.activeDough);
       const nextDough = order[(idx + 1) % order.length];
@@ -2013,17 +2053,19 @@ function markAsRealizado(rowIndices, clientName = '') {
   showToastNotification(`🥖 Pedido de "${clientName || 'Cliente'}" marcado como REALIZADO. Retirado de Producción TV.`);
 }
 
-// ACCIÓN: Producción Terminada (Marcar todos los pedidos en Producción como Realizados)
+// ACCIÓN: Producción Terminada (Marcar solo los pedidos de la masa activa en Producción como Realizados)
 function markAllProductionAsRealizado() {
-  const prodOrders = state.orders.filter(o => normalizarEstado(o.estado) === 'EN_PRODUCCION');
+  const doughName = FORMULAS_BASE[state.activeDough]?.nombre || state.activeDough;
+  const prodOrders = state.orders.filter(o => normalizarEstado(o.estado) === 'EN_PRODUCCION' && getTipoMasa(o) === state.activeDough);
   if (prodOrders.length === 0) {
-    showToastNotification('ℹ️ No hay pedidos en producción actualmente.');
+    showToastNotification(`ℹ️ No hay pedidos en producción de "${doughName}".`);
     return;
   }
 
   const clientesUnicos = [...new Set(prodOrders.map(o => o.cliente))];
-  const confirmMsg = `¿Deseas marcar la PRODUCCIÓN como TERMINADA?\n\n` +
+  const confirmMsg = `¿Deseas marcar la producción de "${doughName}" como TERMINADA?\n\n` +
     `• ${prodOrders.length} ítems en producción de ${clientesUnicos.length} cliente(s)\n` +
+    `• Solo afectará a los pedidos de la masa activa (${doughName})\n` +
     `• Todos pasarán de inmediato al estado "REALIZADO" (Listos para Despacho).`;
 
   if (!confirm(confirmMsg)) return;
@@ -2058,7 +2100,7 @@ function markAllProductionAsRealizado() {
   }
 
   renderAllViews();
-  showToastNotification(`🎉 ¡Producción Terminada! ${prodOrders.length} ítems de ${clientesUnicos.length} cliente(s) pasaron a LISTO DESPACHO.`);
+  showToastNotification(`🎉 ¡Producción Terminada (${doughName})! ${prodOrders.length} ítems de ${clientesUnicos.length} cliente(s) pasaron a LISTO DESPACHO.`);
 }
 
 // Revertir a Producción (vuelve a figurar en la pantalla de Producción TV)
@@ -2267,22 +2309,36 @@ function renderProduccion() {
   const countBrioche = allInProd.filter(o => getTipoMasa(o) === 'brioche').length;
   const countPapa = allInProd.filter(o => getTipoMasa(o) === 'papa').length;
   const countDulce = allInProd.filter(o => getTipoMasa(o) === 'dulce').length;
+  const countBurrero = allInProd.filter(o => getTipoMasa(o) === 'burrero').length;
+  const countJamon = allInProd.filter(o => getTipoMasa(o) === 'jamon').length;
 
   const btnBrioche = document.querySelector('.btn-dough[data-dough="brioche"]');
   const btnPapa = document.querySelector('.btn-dough[data-dough="papa"]');
   const btnDulce = document.querySelector('.btn-dough[data-dough="dulce"]');
+  const btnBurrero = document.querySelector('.btn-dough[data-dough="burrero"]');
+  const btnJamon = document.querySelector('.btn-dough[data-dough="jamon"]');
+
   if (btnBrioche) btnBrioche.innerHTML = `🟡 Masa Brioche${countBrioche > 0 ? ` <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold ${state.activeDough === 'brioche' ? 'bg-slate-950 text-amber-300' : 'bg-slate-900 text-amber-300 border border-slate-700'}">${countBrioche}</span>` : ''}`;
   if (btnPapa) btnPapa.innerHTML = `🥔 Pan de Papa${countPapa > 0 ? ` <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold ${state.activeDough === 'papa' ? 'bg-slate-950 text-amber-300' : 'bg-slate-900 text-amber-300 border border-slate-700'}">${countPapa}</span>` : ''}`;
   if (btnDulce) btnDulce.innerHTML = `🍬 Pan Dulce${countDulce > 0 ? ` <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold ${state.activeDough === 'dulce' ? 'bg-slate-950 text-amber-300' : 'bg-slate-900 text-amber-300 border border-slate-700'}">${countDulce}</span>` : ''}`;
+  if (btnBurrero) btnBurrero.innerHTML = `🌭 Pan Burrero${countBurrero > 0 ? ` <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold ${state.activeDough === 'burrero' ? 'bg-slate-950 text-amber-300' : 'bg-slate-900 text-amber-300 border border-slate-700'}">${countBurrero}</span>` : ''}`;
+  if (btnJamon) btnJamon.innerHTML = `🥓 Pan de Jamón${countJamon > 0 ? ` <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold ${state.activeDough === 'jamon' ? 'bg-slate-950 text-amber-300' : 'bg-slate-900 text-amber-300 border border-slate-700'}">${countJamon}</span>` : ''}`;
 
   // 2. Título y masa activa
   const doughTitleEl = document.getElementById('tv-dough-title');
   const doughBadgeEl = document.getElementById('tv-dough-badge');
-  const formulaMeta = FORMULAS_BASE[state.activeDough];
+  const formulaMeta = FORMULAS_BASE[state.activeDough] || FORMULAS_BASE.brioche;
   
   if (doughTitleEl) doughTitleEl.textContent = formulaMeta.nombre;
   if (doughBadgeEl) {
-    doughBadgeEl.textContent = state.activeDough === 'brioche' ? '🟡 Masa Brioche' : (state.activeDough === 'papa' ? '🥔 Pan de Papa' : '🍬 Pan Dulce');
+    const doughLabels = {
+      brioche: '🟡 Masa Brioche',
+      papa: '🥔 Pan de Papa',
+      dulce: '🍬 Pan Dulce',
+      burrero: '🌭 Pan Burrero',
+      jamon: '🥓 Pan de Jamón'
+    };
+    doughBadgeEl.textContent = doughLabels[state.activeDough] || formulaMeta.nombre;
   }
 
   // 3. Consolidar agrupando primariamente por TOPPING (Req 2)
