@@ -497,9 +497,6 @@ const MOCK_ORDERS = [
 // Determinar si una orden corresponde a la modalidad Delivery
 function isDeliveryOrder(order) {
   if (!order) return false;
-  if (state.localDeliveryIndices && state.localDeliveryIndices.has(order.rowIndex)) {
-    return true;
-  }
   const ent = (order.entrega || '').toLowerCase();
   if (ent.includes('retiro') || ent.includes('no')) return false;
   if (ent.includes('delivery') || ent.includes('si') || ent.includes('sí') || ent.includes('despacho') || ent.includes('envio') || ent.includes('envío') || ent.includes('domicilio')) return true;
@@ -571,10 +568,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function initDeliveryState() {
+  // Purgar listas obsoletas de índices de fila de versiones previas
+  try {
+    localStorage.removeItem('sugar_realizados_indices');
+    localStorage.removeItem('sugar_delivered_indices');
+    localStorage.removeItem('sugar_delivery_indices');
+  } catch (e) {}
+
   state.deliveryDrivers = getLocalDeliveryDrivers();
   state.deliveriesMeta = getLocalDeliveriesMeta();
-  state.localRealizados = getLocalRealizadosIndices();
-  state.localDeliveryIndices = getLocalDeliveryIndices();
+  state.localRealizados = new Set();
+  state.localDeliveryIndices = new Set();
   state.productionDiscounts = getLocalProductionDiscounts();
   state.wheelAdjustments = getLocalWheelAdjustments();
 }
@@ -595,56 +599,29 @@ async function loadCatalog() {
   }
 }
 
-// Helpers de persistencia local (Entregados, Realizados, Deliverys, Repartidores)
+// Helpers de persistencia local (compatibilidad legacy sin corromper por número de fila)
 function getLocalDeliveredIndices() {
-  try {
-    const raw = localStorage.getItem('sugar_delivered_indices');
-    return new Set(raw ? JSON.parse(raw) : []);
-  } catch (e) {
-    return new Set();
-  }
+  return new Set();
 }
 
 function saveLocalDeliveredIndices(indicesSet) {
-  try {
-    localStorage.setItem('sugar_delivered_indices', JSON.stringify(Array.from(indicesSet)));
-  } catch (e) {
-    console.error('Error al guardar índices entregados locales:', e);
-  }
+  // Ya no se guardan índices numéricos de fila en localStorage para no corromper nuevos pedidos semanales
 }
 
 function getLocalRealizadosIndices() {
-  try {
-    const raw = localStorage.getItem('sugar_realizados_indices');
-    return new Set(raw ? JSON.parse(raw) : []);
-  } catch (e) {
-    return new Set();
-  }
+  return new Set();
 }
 
 function saveLocalRealizadosIndices(indicesSet) {
-  try {
-    localStorage.setItem('sugar_realizados_indices', JSON.stringify(Array.from(indicesSet)));
-  } catch (e) {
-    console.error('Error al guardar realizados locales:', e);
-  }
+  // Ya no se guardan índices numéricos de fila en localStorage para no corromper nuevos pedidos semanales
 }
 
 function getLocalDeliveryIndices() {
-  try {
-    const raw = localStorage.getItem('sugar_delivery_indices');
-    return new Set(raw ? JSON.parse(raw) : []);
-  } catch (e) {
-    return new Set();
-  }
+  return new Set();
 }
 
 function saveLocalDeliveryIndices(indicesSet) {
-  try {
-    localStorage.setItem('sugar_delivery_indices', JSON.stringify(Array.from(indicesSet)));
-  } catch (e) {
-    console.error('Error al guardar delivery indices:', e);
-  }
+  // Ya no se guardan índices numéricos de fila en localStorage para no corromper nuevos pedidos semanales
 }
 
 function getLocalDeliveriesMeta() {
@@ -815,10 +792,6 @@ function resetAllProductionDiscounts(dough = null) {
 
 // Cargar pedidos desde Apps Script o usar Mocks
 async function loadOrders() {
-  const localDelivered = getLocalDeliveredIndices();
-  const localRealizados = getLocalRealizadosIndices();
-  const localDelivery = getLocalDeliveryIndices();
-
   if (state.apiUrl) {
     try {
       showSyncIndicator(true);
@@ -826,17 +799,9 @@ async function loadOrders() {
       const data = await res.json();
       if (data && data.success && Array.isArray(data.orders)) {
         state.orders = data.orders.map(o => {
+          // El estado proviene directamente de Google Sheets (Columna L) como única fuente de verdad
           let estado = normalizarEstado(o.estado);
-          if (localDelivered.has(o.rowIndex)) {
-            estado = 'ENTREGADO';
-          } else if (localRealizados.has(o.rowIndex)) {
-            estado = 'REALIZADO';
-          }
-
-          let entrega = o.entrega;
-          if (localDelivery.has(o.rowIndex)) {
-            entrega = 'Delivery: A domicilio';
-          }
+          let entrega = o.entrega || 'Retiro en Tienda';
 
           // Si Google Sheets trae columnas de repartidor/costo/liquidado
           if (o.repartidor || o.costo_delivery || typeof o.liquidado !== 'undefined') {
@@ -848,16 +813,12 @@ async function loadOrders() {
             const cost = parseFloat(o.costo_delivery) || 0;
             const driver = o.repartidor || '';
 
-            if (!state.deliveriesMeta[o.rowIndex]) {
-              state.deliveriesMeta[o.rowIndex] = {
-                repartidor: driver,
-                costo: cost,
-                liquidado: isLiq
-              };
-            }
-            if (!state.deliveriesMeta[cardKey]) {
-              state.deliveriesMeta[cardKey] = state.deliveriesMeta[o.rowIndex];
-            }
+            state.deliveriesMeta[o.rowIndex] = {
+              repartidor: driver,
+              costo: cost,
+              liquidado: isLiq
+            };
+            state.deliveriesMeta[cardKey] = state.deliveriesMeta[o.rowIndex];
           }
 
           return { ...o, estado, entrega };
@@ -879,14 +840,7 @@ async function loadOrders() {
       state.orders = JSON.parse(saved);
       state.orders.forEach(o => {
         o.estado = normalizarEstado(o.estado);
-        if (localDelivered.has(o.rowIndex)) {
-          o.estado = 'ENTREGADO';
-        } else if (localRealizados.has(o.rowIndex)) {
-          o.estado = 'REALIZADO';
-        }
-        if (localDelivery.has(o.rowIndex)) {
-          o.entrega = 'Delivery: A domicilio';
-        }
+        o.entrega = o.entrega || 'Retiro en Tienda';
       });
     } catch (e) {
       state.orders = MOCK_ORDERS.map(o => ({ ...o, estado: normalizarEstado(o.estado) }));
@@ -1887,18 +1841,11 @@ function retireFromProduction(rowIndices, label = '') {
   if (!rowIndices || rowIndices.length === 0) return;
 
   // 1. Actualizar estado local inmediatamente
-  const localDelivered = getLocalDeliveredIndices();
-  const localRealizados = getLocalRealizadosIndices();
-
   state.orders.forEach(o => {
     if (rowIndices.includes(o.rowIndex)) {
       o.estado = 'PENDIENTE';
-      localDelivered.delete(o.rowIndex);
-      localRealizados.delete(o.rowIndex);
     }
   });
-  saveLocalDeliveredIndices(localDelivered);
-  saveLocalRealizadosIndices(localRealizados);
   saveLocalOrders();
 
   // 2. Deseleccionar si estuviesen en el set de selección
@@ -2082,20 +2029,14 @@ function markAllProductionAsRealizado() {
   if (!confirm(confirmMsg)) return;
 
   const rowIndices = prodOrders.map(o => o.rowIndex);
-  const localRealizados = getLocalRealizadosIndices();
-  const localDelivered = getLocalDeliveredIndices();
 
   state.orders.forEach(o => {
     if (rowIndices.includes(o.rowIndex)) {
       o.estado = 'REALIZADO';
-      localRealizados.add(o.rowIndex);
-      localDelivered.delete(o.rowIndex);
       state.selectedOrders.delete(o.rowIndex);
     }
   });
 
-  saveLocalRealizadosIndices(localRealizados);
-  saveLocalDeliveredIndices(localDelivered);
   saveLocalOrders();
 
   if (state.apiUrl) {
@@ -2124,19 +2065,12 @@ function markAllProductionAsRealizado() {
 function revertToProduccion(rowIndices, clientName = '') {
   if (!rowIndices || rowIndices.length === 0) return;
 
-  const localRealizados = getLocalRealizadosIndices();
-  const localDelivered = getLocalDeliveredIndices();
-
   state.orders.forEach(o => {
     if (rowIndices.includes(o.rowIndex)) {
       o.estado = 'EN_PRODUCCION';
-      localRealizados.delete(o.rowIndex);
-      localDelivered.delete(o.rowIndex);
     }
   });
 
-  saveLocalRealizadosIndices(localRealizados);
-  saveLocalDeliveredIndices(localDelivered);
   saveLocalOrders();
 
   if (state.apiUrl) {
@@ -2165,11 +2099,9 @@ function revertToProduccion(rowIndices, clientName = '') {
 function sendToDelivery(rowIndices, clientName = '') {
   if (!rowIndices || rowIndices.length === 0) return;
 
-  const localDeliv = getLocalDeliveryIndices();
   const meta = getLocalDeliveriesMeta();
 
   rowIndices.forEach(idx => {
-    localDeliv.add(idx);
     if (!meta[idx]) {
       meta[idx] = { repartidor: '', costo: 0, liquidado: false };
     }
@@ -2181,7 +2113,6 @@ function sendToDelivery(rowIndices, clientName = '') {
     }
   });
 
-  saveLocalDeliveryIndices(localDeliv);
   saveLocalDeliveriesMeta(meta);
   saveLocalOrders();
 
@@ -2211,16 +2142,12 @@ function sendToDelivery(rowIndices, clientName = '') {
 function sendToPickup(rowIndices, clientName = '') {
   if (!rowIndices || rowIndices.length === 0) return;
 
-  const localDeliv = getLocalDeliveryIndices();
-  rowIndices.forEach(idx => localDeliv.delete(idx));
-
   state.orders.forEach(o => {
     if (rowIndices.includes(o.rowIndex)) {
       o.entrega = 'Retiro en Tienda';
     }
   });
 
-  saveLocalDeliveryIndices(localDeliv);
   saveLocalOrders();
 
   if (state.apiUrl) {
@@ -3894,30 +3821,7 @@ function scrollToEntregaCard(cardKey) {
 function updateDeliveryStatus(rowIndices, newStatus, clientName = '') {
   if (!rowIndices || rowIndices.length === 0) return;
 
-  const localDelivered = getLocalDeliveredIndices();
-  const localRealizados = getLocalRealizadosIndices();
-
-  if (newStatus === 'ENTREGADO') {
-    rowIndices.forEach(idx => {
-      localDelivered.add(idx);
-      localRealizados.delete(idx);
-    });
-  } else if (newStatus === 'EN_PRODUCCION') {
-    rowIndices.forEach(idx => {
-      localDelivered.delete(idx);
-      localRealizados.delete(idx);
-    });
-  } else if (newStatus === 'REALIZADO') {
-    rowIndices.forEach(idx => {
-      localDelivered.delete(idx);
-      localRealizados.add(idx);
-    });
-  }
-
-  saveLocalDeliveredIndices(localDelivered);
-  saveLocalRealizadosIndices(localRealizados);
-
-  // Actualizar estado exclusivamente en memoria interna y cache local
+  // 1. Actualizar estado en memoria interna
   state.orders.forEach(o => {
     if (rowIndices.includes(o.rowIndex)) {
       o.estado = newStatus;
@@ -3925,10 +3829,29 @@ function updateDeliveryStatus(rowIndices, newStatus, clientName = '') {
   });
   saveLocalOrders();
 
-  // Re-renderizar vistas activas y contadores
+  // 2. Sincronizar de forma asíncrona con Google Sheets (Columna L)
+  if (state.apiUrl) {
+    showSyncIndicator(true);
+    fetch(state.apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'updateOrderStatus',
+        rowIndices: rowIndices,
+        status: newStatus
+      })
+    })
+      .then(() => showSyncIndicator(false))
+      .catch(err => {
+        console.error('Error al sincronizar estado de entrega en Sheets:', err);
+        showSyncIndicator(false);
+      });
+  }
+
+  // 3. Re-renderizar vistas activas y contadores
   renderAllViews();
 
-  // Notificación toast de confirmación inmediata
+  // 4. Notificación toast de confirmación inmediata
   let toastText = '';
   if (newStatus === 'ENTREGADO') {
     toastText = `✅ Pedido de "${clientName || 'Cliente'}" marcado como ENTREGADO / DESPACHADO.`;
