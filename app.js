@@ -101,13 +101,11 @@ const FORMULAS_BASE = {
     baseHarina: 45000,
     ingredientes: [
       { nombre: 'Harina de Trigo', base: 45000, porcentaje: 100 },
-      { nombre: 'Agua', base: 25600, porcentaje: 56.89 },
-      { nombre: 'Azúcar', base: 3600, porcentaje: 8.00 },
-      { nombre: 'Mantequilla / Manteca', base: 800, porcentaje: 1.78 },
-      { nombre: 'Sal', base: 540, porcentaje: 1.20 },
-      { nombre: 'Esencia', base: 400, porcentaje: 0.89 },
-      { nombre: 'Propinato de Calcio', base: 240, porcentaje: 0.53 },
-      { nombre: 'Levadura Fresca', base: 100, porcentaje: 0.22 }
+      { nombre: 'Agua', base: 23130, porcentaje: 51.40 },
+      { nombre: 'Azúcar', base: 1350, porcentaje: 3.00 },
+      { nombre: 'Mantequilla', base: 810, porcentaje: 1.80 },
+      { nombre: 'Sal', base: 801, porcentaje: 1.78 },
+      { nombre: 'Levadura', base: 360, porcentaje: 0.80 }
     ]
   }
 };
